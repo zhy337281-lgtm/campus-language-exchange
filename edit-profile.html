@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Edit Profile</title>
+
+<style>
+body{
+font-family:Arial;
+background:#f3f4f6;
+margin:0;
+}
+
+.container{
+max-width:600px;
+margin:40px auto;
+background:white;
+padding:24px;
+border-radius:12px;
+}
+
+input{
+width:100%;
+padding:10px;
+margin:8px 0;
+}
+
+button{
+padding:10px 16px;
+background:#2563eb;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Edit Profile</h2>
+
+<label>Languages You Speak</label>
+<input id="speak">
+
+<label>Language You Learn</label>
+<input id="learn">
+
+<label>Instagram</label>
+<input id="contact">
+
+<label>Avatar</label>
+<input type="file" id="avatar">
+
+<button onclick="saveProfile()">Save</button>
+
+</div>
+
+<script>
+
+let user = JSON.parse(localStorage.getItem("currentUser"));
+
+document.getElementById("speak").value = user.speak || "";
+document.getElementById("learn").value = user.learn || "";
+document.getElementById("contact").value = user.contact || "";
+
+function saveProfile(){
+
+user.speak = document.getElementById("speak").value;
+user.learn = document.getElementById("learn").value;
+user.contact = document.getElementById("contact").value;
+
+const avatarFile = document.getElementById("avatar").files[0];
+
+if(avatarFile){
+const reader = new FileReader();
+reader.onload = function(e){
+user.avatar = e.target.result;
+finishSave();
+};
+reader.readAsDataURL(avatarFile);
+}else{
+finishSave();
+}
+
+function finishSave(){
+
+localStorage.setItem("currentUser", JSON.stringify(user));
+
+let users = JSON.parse(localStorage.getItem("users")) || [];
+
+users = users.map(u => {
+if(u.email === user.email){
+return user;
+}
+return u;
+});
+
+localStorage.setItem("users", JSON.stringify(users));
+
+alert("Profile updated");
+
+window.location.href="profile.html";
+
+}
+
+}
+
+</script>
+
+</body>
+</html>

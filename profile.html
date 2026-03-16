@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>My Profile</title>
+
+<style>
+body{
+font-family: Arial;
+background:#f3f4f6;
+margin:0;
+}
+
+.navbar{
+background:#1d4ed8;
+color:white;
+padding:16px 24px;
+font-size:22px;
+font-weight:bold;
+}
+
+.container{
+max-width:700px;
+margin:40px auto;
+background:white;
+padding:24px;
+border-radius:12px;
+box-shadow:0 4px 10px rgba(0,0,0,0.08);
+}
+
+.avatar{
+width:90px;
+height:90px;
+border-radius:50%;
+object-fit:cover;
+background:#dbeafe;
+display:block;
+margin-bottom:20px;
+}
+
+.info{
+margin:8px 0;
+font-size:16px;
+}
+
+.button{
+margin-top:12px;
+padding:10px 16px;
+border:none;
+border-radius:8px;
+background:#2563eb;
+color:white;
+cursor:pointer;
+}
+.navbar {
+  background: #1d4ed8;
+  color: white;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.nav-links a {
+  color: white;
+  text-decoration: none;
+  margin-left: 16px;
+  font-size: 16px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="navbar">My Profile</div>
+
+<div class="container">
+
+<img id="avatar" class="avatar">
+
+<h2 id="name"></h2>
+
+<div class="info"><strong>Email:</strong> <span id="email"></span></div>
+<div class="info"><strong>Speaks:</strong> <span id="speak"></span></div>
+<div class="info"><strong>Learning:</strong> <span id="learn"></span></div>
+<div class="info"><strong>Instagram:</strong> <span id="contact"></span></div>
+
+<button class="button" onclick="location.href='edit-profile.html'">Edit Profile</button>
+<button class="button" onclick="location.href='myposts.html'">My Posts</button>
+<button class="button" onclick="location.href='change-password.html'">Change Password</button>
+
+</div>
+
+<script>
+
+const user = JSON.parse(localStorage.getItem("currentUser"));
+
+if(!user){
+alert("Please login first");
+window.location.href="login.html";
+}
+
+document.getElementById("name").innerText = user.name;
+document.getElementById("email").innerText = user.email;
+
+document.getElementById("speak").innerText = user.speak || "Not set";
+document.getElementById("learn").innerText = user.learn || "Not set";
+document.getElementById("contact").innerText = user.contact || "Not set";
+
+if(user.avatar){
+document.getElementById("avatar").src = user.avatar;
+}else{
+document.getElementById("avatar").src = "https://via.placeholder.com/90";
+}
+
+</script>
+
+</body>
+<div class="navbar">
+  <span>Campus Language Exchange</span>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="partners.html">Find Partner</a>
+    <a href="create.html">Create Post</a>
+    <a href="myposts.html">My Posts</a>
+    <a href="profile.html">Profile</a>
+  </div>
+</div>
+</html>

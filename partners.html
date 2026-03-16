@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Find Partners</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin-left: 16px;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .filters {
+      margin-bottom: 20px;
+    }
+
+    .filters input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .profile-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .profile-card h3 {
+      margin-bottom: 8px;
+      color: #1d4ed8;
+    }
+
+    .profile-card p {
+      margin: 6px 0;
+      color: #374151;
+    }
+
+    .delete-btn {
+      margin-top: 12px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #dc2626;
+      color: white;
+      cursor: pointer;
+    }
+    .avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #dbeafe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Campus Language Exchange</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="partners.html">Find Partner</a>
+      <a href="create.html">Create Post</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Find Language Partners</h1>
+
+    <div class="filters">
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search by language or name..."
+        oninput="renderPosts()"
+      />
+    </div>
+
+    <div id="posts-container"></div>
+  </div>
+
+  <script>
+
+const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+function deletePost(index) {
+  let posts = JSON.parse(localStorage.getItem("posts")) || [];
+  posts.splice(index, 1);
+  localStorage.setItem("posts", JSON.stringify(posts));
+  renderPosts();
+}
+
+
+  function renderPosts() {
+    const posts = JSON.parse(localStorage.getItem("posts")) || [];
+    const container = document.getElementById("posts-container");
+    const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+    container.innerHTML = "";
+
+    const filteredPosts = posts.filter(post =>
+      post.name.toLowerCase().includes(keyword) ||
+      post.speak.toLowerCase().includes(keyword) ||
+      post.learn.toLowerCase().includes(keyword) ||
+      post.content.toLowerCase().includes(keyword)
+    );
+
+    if (filteredPosts.length === 0) {
+      container.innerHTML = "<p>No matching posts found.</p>";
+      return;
+    }
+
+    filteredPosts.forEach((post) => {
+      const originalIndex = posts.findIndex(p =>
+        p.name === post.name &&
+        p.speak === post.speak &&
+        p.learn === post.learn &&
+        p.content === post.content
+      );
+
+      const card = document.createElement("div");
+      card.className = "profile-card";
+      card.innerHTML = `
+  <h3>👤 ${post.name}</h3>
+  <p><strong>Speaks:</strong> ${post.speak}</p>
+  <p><strong>Learning:</strong> ${post.learn}</p>
+  <p><strong>Introduction:</strong> ${post.content}</p>
+  <p><strong>Contact:</strong> ${post.contact || "Not provided"}</p>
+
+  ${post.email === currentUser.email 
+    ? `<button class="delete-btn" onclick="deletePost(${originalIndex})">Delete</button>`
+    : ""
+  }
+`;
+      container.appendChild(card);
+    });
+  }
+
+  renderPosts();
+</script>
+</body>
+</html>

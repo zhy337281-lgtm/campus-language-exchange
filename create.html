@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Post</title>
+  <p id="welcomeUser"></p>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 30px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .navbar {
+  background: #1d4ed8;
+  color: white;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+     .nav-links a {
+  color: white;
+  text-decoration: none;
+  margin-left: 16px;
+  font-size: 16px;
+  font-weight: normal;
+}
+  </style>
+</head>
+<body>
+  <div class="navbar">
+  <span>Campus Language Exchange</span>
+  <div class="nav-links">
+    <a href="index.html">Home</a>
+    <a href="partners.html">Find Partner</a>
+    <a href="create.html">Create Post</a>
+    <a href="myposts.html">My Posts</a>
+    <a href="profile.html">Profile</a>
+  </div>
+</div>
+  <div class="container">
+    <h1>Create a Post</h1>
+
+
+    <label>Languages You Speak</label>
+    <input type="text" id="speak" placeholder="Chinese, English..." />
+
+    <label>Language You Want to Learn</label>
+    <input type="text" id="learn" placeholder="Japanese..." />
+
+    <label>Post Content</label>
+    <textarea id="content" placeholder="Write your introduction here..."></textarea>
+    <label>Instagram or Contact</label>
+    <input type="text" id="contact" placeholder="@yourinstagram or Line ID" />
+
+    <button onclick="submitPost()">Submit</button>
+  </div>
+
+  <script>
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  if (!currentUser) {
+    alert("Please log in first.");
+    window.location.href = "login.html";
+  } else {
+    document.getElementById("welcomeUser").innerText = "Logged in as: " + currentUser.name;
+  }
+
+  function submitPost() {
+    const speak = document.getElementById("speak").value.trim();
+    const learn = document.getElementById("learn").value.trim();
+    const content = document.getElementById("content").value.trim();
+    const contact = document.getElementById("contact").value.trim();
+
+    if (speak === "" || learn === "") {
+      alert("Please fill in Languages You Speak and Language You Want to Learn.");
+      return;
+    }
+
+    const newPost = {
+      name: currentUser.name,
+      email: currentUser.email,
+      speak: speak,
+      learn: learn,
+      content: content,
+      contact: contact
+    };
+
+    let posts = JSON.parse(localStorage.getItem("posts")) || [];
+    posts.push(newPost);
+    localStorage.setItem("posts", JSON.stringify(posts));
+
+    alert("Post submitted successfully!");
+    window.location.href = "partners.html";
+  }
+</script>
+</body>
+</html>
