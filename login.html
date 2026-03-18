@@ -92,7 +92,7 @@
 
   <script type="module">
     import { auth } from "./firebase.js";
-    import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { signInWithEmailAndPassword, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
     async function loginUser() {
       const email = document.getElementById("email").value.trim();
@@ -108,7 +108,15 @@
 const user = userCredential.user;
 
 if (!user.emailVerified) {
-  alert("Please verify your email before logging in.");
+  const resend = confirm(
+    "Your email has not been verified yet. Click OK to resend the verification email."
+  );
+
+  if (resend) {
+    await sendEmailVerification(user);
+    alert("Verification email sent. Please check your inbox.");
+  }
+
   await signOut(auth);
   return;
 }
