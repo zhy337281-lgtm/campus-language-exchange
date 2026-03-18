@@ -91,6 +91,70 @@
       display: block;
       margin-bottom: 12px;
     }
+
+    .comments-section {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .comments-section h4 {
+      margin: 0 0 10px 0;
+      color: #111827;
+    }
+
+    .comments-list {
+      margin-bottom: 12px;
+    }
+
+    .comment-item {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    .comment-meta {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .comment-text {
+      color: #111827;
+      word-break: break-word;
+    }
+
+    .comment-input-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .comment-input-row input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .comment-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .empty-comment {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -122,19 +186,39 @@
   <script type="module">
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-    import { ref, onValue, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import {
+      ref,
+      onValue,
+      remove,
+      push,
+      set,
+      get
+    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
     let currentUser = null;
+    let currentProfile = null;
     let allPosts = [];
+    let allComments = {};
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       currentUser = user || null;
+
+      if (currentUser) {
+        try {
+          const userSnapshot = await get(ref(db, "users/" + currentUser.uid));
+          currentProfile = userSnapshot.exists() ? userSnapshot.val() : null;
+        } catch (error) {
+          console.error("Failed to load current user profile:", error);
+          currentProfile = null;
+        }
+      } else {
+        currentProfile = null;
+      }
+
       renderPosts();
     });
 
-    const postsRef = ref(db, "posts");
-
-    onValue(postsRef, (snapshot) => {
+    onValue(ref(db, "posts"), (snapshot) => {
       allPosts = [];
 
       const data = snapshot.val();
@@ -152,6 +236,11 @@
       renderPosts();
     });
 
+    onValue(ref(db, "comments"), (snapshot) => {
+      allComments = snapshot.val() || {};
+      renderPosts();
+    });
+
     async function deletePost(postId, postUid) {
       if (!currentUser) {
         alert("Please login first.");
@@ -165,11 +254,85 @@
 
       try {
         await remove(ref(db, "posts/" + postId));
+        await remove(ref(db, "comments/" + postId));
         alert("Post deleted successfully.");
       } catch (error) {
         console.error(error);
         alert("Failed to delete post: " + error.message);
       }
+    }
+
+    async function submitComment(postId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const input = document.getElementById(`comment-input-${postId}`);
+      if (!input) return;
+
+      const text = input.value.trim();
+
+      if (!text) {
+        alert("Please write a comment.");
+        return;
+      }
+
+      try {
+        const newCommentRef = push(ref(db, "comments/" + postId));
+
+        await set(newCommentRef, {
+          uid: currentUser.uid,
+          name: currentProfile?.name || currentUser.email || "Anonymous",
+          text: text,
+          createdAt: Date.now()
+        });
+
+        input.value = "";
+      } catch (error) {
+        console.error(error);
+        alert("Failed to submit comment: " + error.message);
+      }
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return "";
+      const date = new Date(timestamp);
+      return date.toLocaleString();
+    }
+
+    function renderComments(postId) {
+      const commentGroup = allComments[postId];
+      if (!commentGroup) {
+        return `<div class="empty-comment">No comments yet.</div>`;
+      }
+
+      const commentsArray = Object.entries(commentGroup)
+        .map(([id, comment]) => ({
+          id,
+          ...comment
+        }))
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+      if (commentsArray.length === 0) {
+        return `<div class="empty-comment">No comments yet.</div>`;
+      }
+
+      return commentsArray.map(comment => `
+        <div class="comment-item">
+          <div class="comment-meta">${comment.name || "Anonymous"} · ${formatTime(comment.createdAt)}</div>
+          <div class="comment-text">${escapeHtml(comment.text || "")}</div>
+        </div>
+      `).join("");
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     function renderPosts() {
@@ -203,12 +366,29 @@
 
         card.innerHTML = `
           <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
-          <h3>👤 ${post.name || "Unknown User"}</h3>
-          <p><strong>Speaks:</strong> ${post.speak || "Not provided"}</p>
-          <p><strong>Learning:</strong> ${post.learn || "Not provided"}</p>
-          <p><strong>Introduction:</strong> ${post.content || ""}</p>
-          <p><strong>Contact:</strong> ${post.contact || "Not provided"}</p>
+          <h3>👤 ${escapeHtml(post.name || "Unknown User")}</h3>
+          <p><strong>Speaks:</strong> ${escapeHtml(post.speak || "Not provided")}</p>
+          <p><strong>Learning:</strong> ${escapeHtml(post.learn || "Not provided")}</p>
+          <p><strong>Introduction:</strong> ${escapeHtml(post.content || "")}</p>
+          <p><strong>Contact:</strong> ${escapeHtml(post.contact || "Not provided")}</p>
+
           ${canDelete ? `<button class="delete-btn" data-id="${post.id}" data-uid="${post.uid}">Delete</button>` : ""}
+
+          <div class="comments-section">
+            <h4>Comments</h4>
+            <div class="comments-list" id="comments-${post.id}">
+              ${renderComments(post.id)}
+            </div>
+
+            <div class="comment-input-row">
+              <input
+                type="text"
+                id="comment-input-${post.id}"
+                placeholder="Write a comment..."
+              />
+              <button class="comment-btn" data-comment-post-id="${post.id}">Comment</button>
+            </div>
+          </div>
         `;
 
         container.appendChild(card);
@@ -219,6 +399,13 @@
           const postId = e.target.getAttribute("data-id");
           const postUid = e.target.getAttribute("data-uid");
           await deletePost(postId, postUid);
+        });
+      });
+
+      document.querySelectorAll(".comment-btn").forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          const postId = e.target.getAttribute("data-comment-post-id");
+          await submitComment(postId);
         });
       });
     }
