@@ -281,12 +281,42 @@
       try {
         const newCommentRef = push(ref(db, "comments/" + postId));
 
-        await set(newCommentRef, {
-          uid: currentUser.uid,
-          name: currentProfile?.name || currentUser.email || "Anonymous",
-          text: text,
-          createdAt: Date.now()
-        });
+       await set(newCommentRef, {
+  uid: currentUser.uid,
+  name: currentProfile?.name || currentUser.email || "Anonymous",
+  avatar: currentProfile?.avatar || "",
+  text: text,
+  createdAt: Date.now()
+});
+    async function deleteComment(postId, commentId) {
+  if (!currentUser) {
+    alert("Please login first.");
+    return;
+  }
+
+  try {
+    const commentRef = ref(db, `comments/${postId}/${commentId}`);
+    const snapshot = await get(commentRef);
+
+    if (!snapshot.exists()) {
+      alert("Comment not found.");
+      return;
+    }
+
+    const data = snapshot.val();
+
+    if (data.uid !== currentUser.uid) {
+      alert("You can only delete your own comment.");
+      return;
+    }
+
+    await remove(commentRef);
+
+  } catch (error) {
+    console.error(error);
+    alert("Delete failed: " + error.message);
+  }
+}
 
         input.value = "";
       } catch (error) {
@@ -318,12 +348,48 @@
         return `<div class="empty-comment">No comments yet.</div>`;
       }
 
-      return commentsArray.map(comment => `
-        <div class="comment-item">
-          <div class="comment-meta">${comment.name || "Anonymous"} · ${formatTime(comment.createdAt)}</div>
-          <div class="comment-text">${escapeHtml(comment.text || "")}</div>
+      return commentsArray.map(comment => {
+  const commentAvatar = comment.avatar && comment.avatar.trim() !== ""
+    ? comment.avatar
+    : "https://via.placeholder.com/40";
+
+  const canDeleteComment = currentUser && currentUser.uid === comment.uid;
+
+  return `
+    <div class="comment-item">
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <img 
+          src="${commentAvatar}" 
+          style="width:40px; height:40px; border-radius:50%; object-fit:cover;"
+        >
+
+        <div style="flex:1;">
+          <div class="comment-meta">
+            ${comment.name || "Anonymous"} · ${formatTime(comment.createdAt)}
+          </div>
+
+          <div class="comment-text">
+            ${escapeHtml(comment.text || "")}
+          </div>
+
+          ${
+            canDeleteComment
+              ? `<button 
+                  class="delete-comment-btn" 
+                  data-post-id="${postId}" 
+                  data-comment-id="${comment.id}"
+                  style="margin-top:6px; background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer;"
+                >
+                  Delete
+                </button>`
+              : ""
+          }
+
         </div>
-      `).join("");
+      </div>
+    </div>
+  `;
+}).join("");
     }
 
     function escapeHtml(text) {
@@ -394,12 +460,13 @@
         container.appendChild(card);
       });
 
-      document.querySelectorAll(".delete-btn").forEach((button) => {
-        button.addEventListener("click", async (e) => {
-          const postId = e.target.getAttribute("data-id");
-          const postUid = e.target.getAttribute("data-uid");
-          await deletePost(postId, postUid);
-        });
+      document.querySelectorAll(".delete-comment-btn").forEach((btn) => {
+  btn.addEventListener("click", async (e) => {
+    const postId = e.target.getAttribute("data-post-id");
+    const commentId = e.target.getAttribute("data-comment-id");
+
+    await deleteComment(postId, commentId);
+  });
       });
 
       document.querySelectorAll(".comment-btn").forEach((button) => {

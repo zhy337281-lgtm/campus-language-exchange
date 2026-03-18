@@ -92,7 +92,7 @@
 
   <script type="module">
     import { auth } from "./firebase.js";
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 
     async function loginUser() {
       const email = document.getElementById("email").value.trim();
@@ -104,7 +104,14 @@
       }
 
       try {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+const user = userCredential.user;
+
+if (!user.emailVerified) {
+  alert("Please verify your email before logging in.");
+  await signOut(auth);
+  return;
+}
         alert("Login successful!");
         window.location.href = "index.html";
       } catch (error) {
