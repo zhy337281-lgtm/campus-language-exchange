@@ -1,41 +1,44 @@
 <script type="module">
-import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+  import { auth, db } from "./firebase.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+  import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    alert("Please login first");
-    window.location.href = "login.html";
-    return;
-  }
-
-  try {
-    const snapshot = await get(ref(db, "users/" + user.uid));
-
-    if (!snapshot.exists()) {
-      alert("User data not found");
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      alert("Please login first");
+      window.location.href = "login.html";
       return;
     }
 
-    const data = snapshot.val();
+    try {
+      console.log("Logged in user:", user.uid, user.email);
+      console.log("Reading path:", "users/" + user.uid);
 
-    document.getElementById("name").innerText = data.name || "No name";
-    document.getElementById("email").innerText = data.email || user.email;
+      const snapshot = await get(ref(db, "users/" + user.uid));
 
-    document.getElementById("speak").innerText = data.speak || "Not set";
-    document.getElementById("learn").innerText = data.learn || "Not set";
-    document.getElementById("contact").innerText = data.contact || "Not set";
+      console.log("Snapshot exists:", snapshot.exists());
+      console.log("Snapshot value:", snapshot.val());
 
-    if (data.avatar) {
-      document.getElementById("avatar").src = data.avatar;
-    } else {
-      document.getElementById("avatar").src = "https://via.placeholder.com/90";
+      if (!snapshot.exists()) {
+        alert("User data not found in database.");
+        return;
+      }
+
+      const data = snapshot.val();
+
+      document.getElementById("name").innerText = data.name || "No name";
+      document.getElementById("email").innerText = data.email || user.email;
+      document.getElementById("speak").innerText = data.speak || "Not set";
+      document.getElementById("learn").innerText = data.learn || "Not set";
+      document.getElementById("contact").innerText = data.contact || "Not set";
+
+      document.getElementById("avatar").src =
+        data.avatar && data.avatar.trim() !== ""
+          ? data.avatar
+          : "https://via.placeholder.com/90";
+    } catch (error) {
+      console.error("Profile load error:", error);
+      alert("Failed to load profile: " + error.message);
     }
-
-  } catch (error) {
-    console.error(error);
-    alert("Failed to load profile");
-  }
-});
+  });
 </script>
