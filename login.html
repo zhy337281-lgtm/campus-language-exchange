@@ -114,7 +114,7 @@ if (!user.emailVerified) {
 
   if (resend) {
     await sendEmailVerification(user);
-    alert("Verification email sent. Please check your inbox.");
+   alert("Verification email sent. Please check your inbox. If you do not see it, check your junk or spam folder.");
   }
 
   await signOut(auth);
