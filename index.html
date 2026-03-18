@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tokyo Tech Language Exchange</title>
+  <title>Campus Language Exchange</title>
   <style>
     * {
       box-sizing: border-box;
@@ -21,8 +21,31 @@
       background: #1d4ed8;
       color: white;
       padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       font-size: 22px;
       font-weight: bold;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    #userInfo {
+      font-size: 16px;
+      font-weight: normal;
+      margin-left: 8px;
     }
 
     .hero {
@@ -104,52 +127,31 @@
       color: #6b7280;
       font-size: 14px;
     }
-    .navbar {
-  background: #1d4ed8;
-  color: white;
-  padding: 16px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 22px;
-  font-weight: bold;
-}
-
-    .nav-links a {
-  color: white;
-  text-decoration: none;
-  margin-left: 16px;
-  font-size: 16px;
-  font-weight: normal;
-}
   </style>
-  <script>
-const user = JSON.parse(localStorage.getItem("currentUser"));
-
-if (user) {
-  document.getElementById("userInfo").innerText = "👤 " + user.name;
-}
-
-function logout(){
-  localStorage.removeItem("currentUser");
-  alert("Logged out");
-  window.location.href = "login.html";
-}
-</script>
 </head>
 <body>
   <div class="navbar">
-  <span>Campus Language Exchange</span>
-  <div class="nav-links">
-  <a href="index.html">Home</a>
-  <a href="partners.html">Find Partner</a>
-  <a href="create.html">Create Post</a>
-  <a href="profile.html">Profile</a>
-  <span id="userInfo"></span>
-  <a href="#" onclick="logout()">Logout</a>
-</div>
-</div>
-  </section>
+    <span>Campus Language Exchange</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="partners.html">Find Partner</a>
+      <a href="create.html">Create Post</a>
+      <a href="myposts.html">My Posts</a>
+      <a href="profile.html">Profile</a>
+      <span id="userInfo"></span>
+      <a href="#" id="logoutLink">Logout</a>
+    </div>
+  </div>
+
+  <div class="hero">
+    <h1>Welcome to Campus Language Exchange</h1>
+    <p>Connect with students, practice languages, and build your campus community.</p>
+
+    <div class="buttons">
+      <button class="primary" onclick="window.location.href='partners.html'">Find Partners</button>
+      <button class="secondary" onclick="window.location.href='create.html'">Create a Post</button>
+    </div>
+  </div>
 
   <h2 class="section-title">Features</h2>
 
@@ -171,7 +173,52 @@ function logout(){
   </div>
 
   <div class="footer">
-    Built for students at Tokyo Tech
+    Built for students at universities starting from Science Tokyo to the world.
   </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const userInfo = document.getElementById("userInfo");
+    const logoutLink = document.getElementById("logoutLink");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const snapshot = await get(ref(db, "users/" + user.uid));
+
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
+            userInfo.innerText = "👤 " + (userData.name || user.email);
+          } else {
+            userInfo.innerText = "👤 " + user.email;
+          }
+        } catch (error) {
+          console.error(error);
+          userInfo.innerText = "👤 " + user.email;
+        }
+      } else {
+        userInfo.innerText = "";
+      }
+    });
+
+    async function logout() {
+      try {
+        await signOut(auth);
+        alert("Logged out");
+        window.location.href = "login.html";
+      } catch (error) {
+        console.error(error);
+        alert("Logout failed: " + error.message);
+      }
+    }
+
+    logoutLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      logout();
+    });
+  </script>
 </body>
 </html>

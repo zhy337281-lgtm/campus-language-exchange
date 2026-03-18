@@ -51,6 +51,7 @@
       border: 1px solid #d1d5db;
       border-radius: 8px;
       font-size: 15px;
+      box-sizing: border-box;
     }
 
     .profile-card {
@@ -80,17 +81,16 @@
       color: white;
       cursor: pointer;
     }
-    .avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: #dbeafe;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  margin-bottom: 12px;
-}
+
+    .avatar-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+      display: block;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
@@ -100,6 +100,8 @@
       <a href="index.html">Home</a>
       <a href="partners.html">Find Partner</a>
       <a href="create.html">Create Post</a>
+      <a href="myposts.html">My Posts</a>
+      <a href="profile.html">Profile</a>
     </div>
   </div>
 
@@ -111,7 +113,6 @@
         type="text"
         id="searchInput"
         placeholder="Search by language or name..."
-        oninput="renderPosts()"
       />
     </div>
 
@@ -119,77 +120,110 @@
   </div>
 
   <script type="module">
-  import { db } from "./firebase.js";
-  import {
-    collection,
-    getDocs,
-    deleteDoc,
-    doc
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, onValue, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    let currentUser = null;
+    let allPosts = [];
 
-  async function deletePost(docId) {
-    await deleteDoc(doc(db, "posts", docId));
-    renderPosts();
-  }
-
-  async function renderPosts() {
-    const container = document.getElementById("posts-container");
-    const keyword = document.getElementById("searchInput").value.toLowerCase();
-
-    container.innerHTML = "";
-
-    const snapshot = await getDocs(collection(db, "posts"));
-    const posts = [];
-
-    snapshot.forEach((docSnap) => {
-      posts.push({
-        id: docSnap.id,
-        ...docSnap.data()
-      });
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user || null;
+      renderPosts();
     });
 
-    const filteredPosts = posts.filter(post =>
-      (post.name || "").toLowerCase().includes(keyword) ||
-      (post.speak || "").toLowerCase().includes(keyword) ||
-      (post.learn || "").toLowerCase().includes(keyword) ||
-      (post.content || "").toLowerCase().includes(keyword)
-    );
+    const postsRef = ref(db, "posts");
 
-    if (filteredPosts.length === 0) {
-      container.innerHTML = "<p>No matching posts found.</p>";
-      return;
+    onValue(postsRef, (snapshot) => {
+      allPosts = [];
+
+      const data = snapshot.val();
+      if (data) {
+        Object.entries(data).forEach(([id, post]) => {
+          allPosts.push({
+            id,
+            ...post
+          });
+        });
+
+        allPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      }
+
+      renderPosts();
+    });
+
+    async function deletePost(postId, postUid) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      if (currentUser.uid !== postUid) {
+        alert("You can only delete your own posts.");
+        return;
+      }
+
+      try {
+        await remove(ref(db, "posts/" + postId));
+        alert("Post deleted successfully.");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to delete post: " + error.message);
+      }
     }
 
-    filteredPosts.forEach((post) => {
-      const card = document.createElement("div");
-      card.className = "profile-card";
-      card.innerHTML = `
-        <h3>👤 ${post.name}</h3>
-        <p><strong>Speaks:</strong> ${post.speak}</p>
-        <p><strong>Learning:</strong> ${post.learn}</p>
-        <p><strong>Introduction:</strong> ${post.content || ""}</p>
-        <p><strong>Contact:</strong> ${post.contact || "Not provided"}</p>
-        ${
-          currentUser && post.email === currentUser.email
-            ? `<button class="delete-btn" data-id="${post.id}">Delete</button>`
-            : ""
-        }
-      `;
-      container.appendChild(card);
-    });
+    function renderPosts() {
+      const container = document.getElementById("posts-container");
+      const keyword = document.getElementById("searchInput").value.trim().toLowerCase();
 
-    document.querySelectorAll(".delete-btn").forEach(button => {
-      button.addEventListener("click", async (e) => {
-        const docId = e.target.getAttribute("data-id");
-        await deletePost(docId);
+      container.innerHTML = "";
+
+      const filteredPosts = allPosts.filter(post =>
+        (post.name || "").toLowerCase().includes(keyword) ||
+        (post.speak || "").toLowerCase().includes(keyword) ||
+        (post.learn || "").toLowerCase().includes(keyword) ||
+        (post.content || "").toLowerCase().includes(keyword) ||
+        (post.contact || "").toLowerCase().includes(keyword)
+      );
+
+      if (filteredPosts.length === 0) {
+        container.innerHTML = "<p>No matching posts found.</p>";
+        return;
+      }
+
+      filteredPosts.forEach((post) => {
+        const card = document.createElement("div");
+        card.className = "profile-card";
+
+        const avatarSrc = post.avatar && post.avatar.trim() !== ""
+          ? post.avatar
+          : "https://via.placeholder.com/60";
+
+        const canDelete = currentUser && currentUser.uid === post.uid;
+
+        card.innerHTML = `
+          <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
+          <h3>👤 ${post.name || "Unknown User"}</h3>
+          <p><strong>Speaks:</strong> ${post.speak || "Not provided"}</p>
+          <p><strong>Learning:</strong> ${post.learn || "Not provided"}</p>
+          <p><strong>Introduction:</strong> ${post.content || ""}</p>
+          <p><strong>Contact:</strong> ${post.contact || "Not provided"}</p>
+          ${canDelete ? `<button class="delete-btn" data-id="${post.id}" data-uid="${post.uid}">Delete</button>` : ""}
+        `;
+
+        container.appendChild(card);
       });
-    });
-  }
 
-  window.renderPosts = renderPosts;
-  renderPosts();
-</script>
+      document.querySelectorAll(".delete-btn").forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          const postId = e.target.getAttribute("data-id");
+          const postUid = e.target.getAttribute("data-uid");
+          await deletePost(postId, postUid);
+        });
+      });
+    }
+
+    document.getElementById("searchInput").addEventListener("input", renderPosts);
+  </script>
 </body>
 </html>

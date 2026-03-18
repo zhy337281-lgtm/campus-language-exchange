@@ -1,114 +1,180 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Edit Profile</title>
+  <title>Edit Profile</title>
 
-<style>
-body{
-font-family:Arial;
-background:#f3f4f6;
-margin:0;
-}
+  <style>
+    body{
+      font-family:Arial;
+      background:#f3f4f6;
+      margin:0;
+    }
 
-.container{
-max-width:600px;
-margin:40px auto;
-background:white;
-padding:24px;
-border-radius:12px;
-}
+    .container{
+      max-width:600px;
+      margin:40px auto;
+      background:white;
+      padding:24px;
+      border-radius:12px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.08);
+    }
 
-input{
-width:100%;
-padding:10px;
-margin:8px 0;
-}
+    input{
+      width:100%;
+      padding:10px;
+      margin:8px 0 16px 0;
+      box-sizing:border-box;
+      border:1px solid #d1d5db;
+      border-radius:8px;
+    }
 
-button{
-padding:10px 16px;
-background:#2563eb;
-color:white;
-border:none;
-border-radius:8px;
-cursor:pointer;
-}
+    button{
+      padding:10px 16px;
+      background:#2563eb;
+      color:white;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      margin-right:10px;
+    }
 
-</style>
+    .preview{
+      width:90px;
+      height:90px;
+      border-radius:50%;
+      object-fit:cover;
+      display:block;
+      margin:10px 0 16px 0;
+      background:#dbeafe;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="container">
+  <div class="container">
+    <h2>Edit Profile</h2>
 
-<h2>Edit Profile</h2>
+    <label>Languages You Speak</label>
+    <input id="speak">
 
-<label>Languages You Speak</label>
-<input id="speak">
+    <label>Language You Learn</label>
+    <input id="learn">
 
-<label>Language You Learn</label>
-<input id="learn">
+    <label>Instagram</label>
+    <input id="contact">
 
-<label>Instagram</label>
-<input id="contact">
+    <label>Avatar</label>
+    <input type="file" id="avatar" accept="image/*">
 
-<label>Avatar</label>
-<input type="file" id="avatar">
+    <img id="avatarPreview" class="preview" src="https://via.placeholder.com/90" alt="Avatar Preview">
 
-<button onclick="saveProfile()">Save</button>
+    <button onclick="saveProfile()">Save</button>
+    <button onclick="window.location.href='profile.html'">Back</button>
+  </div>
 
-</div>
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get, update } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-<script>
+    let currentUser = null;
+    let currentProfile = {};
 
-let user = JSON.parse(localStorage.getItem("currentUser"));
+    const speakInput = document.getElementById("speak");
+    const learnInput = document.getElementById("learn");
+    const contactInput = document.getElementById("contact");
+    const avatarInput = document.getElementById("avatar");
+    const avatarPreview = document.getElementById("avatarPreview");
 
-document.getElementById("speak").value = user.speak || "";
-document.getElementById("learn").value = user.learn || "";
-document.getElementById("contact").value = user.contact || "";
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please login first");
+        window.location.href = "login.html";
+        return;
+      }
 
-function saveProfile(){
+      currentUser = user;
 
-user.speak = document.getElementById("speak").value;
-user.learn = document.getElementById("learn").value;
-user.contact = document.getElementById("contact").value;
+      try {
+        const snapshot = await get(ref(db, "users/" + user.uid));
 
-const avatarFile = document.getElementById("avatar").files[0];
+        if (snapshot.exists()) {
+          currentProfile = snapshot.val();
 
-if(avatarFile){
-const reader = new FileReader();
-reader.onload = function(e){
-user.avatar = e.target.result;
-finishSave();
-};
-reader.readAsDataURL(avatarFile);
-}else{
-finishSave();
-}
+          speakInput.value = currentProfile.speak || "";
+          learnInput.value = currentProfile.learn || "";
+          contactInput.value = currentProfile.contact || "";
 
-function finishSave(){
+          if (currentProfile.avatar) {
+            avatarPreview.src = currentProfile.avatar;
+          }
+        }
+      } catch (error) {
+        console.error(error);
+        alert("Failed to load profile data");
+      }
+    });
 
-localStorage.setItem("currentUser", JSON.stringify(user));
+    avatarInput.addEventListener("change", () => {
+      const file = avatarInput.files[0];
+      if (!file) return;
 
-let users = JSON.parse(localStorage.getItem("users")) || [];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        avatarPreview.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
 
-users = users.map(u => {
-if(u.email === user.email){
-return user;
-}
-return u;
-});
+    async function saveProfile() {
+      if (!currentUser) {
+        alert("Please login first");
+        return;
+      }
 
-localStorage.setItem("users", JSON.stringify(users));
+      const updatedData = {
+        speak: speakInput.value.trim(),
+        learn: learnInput.value.trim(),
+        contact: contactInput.value.trim()
+      };
 
-alert("Profile updated");
+      const avatarFile = avatarInput.files[0];
 
-window.location.href="profile.html";
+      try {
+        if (avatarFile) {
+          const avatarBase64 = await readFileAsDataURL(avatarFile);
+          updatedData.avatar = avatarBase64;
+        }
 
-}
+        await update(ref(db, "users/" + currentUser.uid), updatedData);
 
-}
+        alert("Profile updated");
+        window.location.href = "profile.html";
+      } catch (error) {
+        console.error(error);
+        alert("Failed to update profile: " + error.message);
+      }
+    }
 
-</script>
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+          resolve(e.target.result);
+        };
+
+        reader.onerror = function() {
+          reject(new Error("Failed to read image file"));
+        };
+
+        reader.readAsDataURL(file);
+      });
+    }
+
+    window.saveProfile = saveProfile;
+  </script>
 
 </body>
 </html>

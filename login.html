@@ -90,27 +90,30 @@
     </div>
   </div>
 
-  <script>
-    function loginUser() {
+  <script type="module">
+    import { auth } from "./firebase.js";
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+
+    async function loginUser() {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
 
-      let users = JSON.parse(localStorage.getItem("users")) || [];
-
-      const matchedUser = users.find(
-        user => user.email === email && user.password === password
-      );
-
-      if (!matchedUser) {
-        alert("Invalid email or password.");
+      if (!email || !password) {
+        alert("Please enter both email and password.");
         return;
       }
 
-      localStorage.setItem("currentUser", JSON.stringify(matchedUser));
-
-      alert("Login successful!");
-      window.location.href = "index.html";
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("Login successful!");
+        window.location.href = "index.html";
+      } catch (error) {
+        alert("Login failed: " + error.message);
+        console.error(error);
+      }
     }
+
+    window.loginUser = loginUser;
   </script>
 </body>
 </html>

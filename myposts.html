@@ -57,6 +57,26 @@
     .empty {
       color: #6b7280;
     }
+
+    .delete-btn {
+      margin-top: 12px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #dc2626;
+      color: white;
+      cursor: pointer;
+    }
+
+    .avatar-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+      display: block;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
@@ -76,58 +96,106 @@
     <div id="posts"></div>
   </div>
 
-  <script>
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, onValue, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-    if (!currentUser) {
-      alert("Please login first.");
-      window.location.href = "login.html";
+    const container = document.getElementById("posts");
+    let currentUser = null;
+    let allPosts = [];
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        alert("Please login first.");
+        window.location.href = "login.html";
+        return;
+      }
+
+      currentUser = user;
+      renderMyPosts();
+    });
+
+    onValue(ref(db, "posts"), (snapshot) => {
+      allPosts = [];
+
+      const data = snapshot.val();
+      if (data) {
+        Object.entries(data).forEach(([id, post]) => {
+          allPosts.push({
+            id,
+            ...post
+          });
+        });
+
+        allPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      }
+
+      renderMyPosts();
+    });
+
+    async function deletePost(postId, postUid) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      if (currentUser.uid !== postUid) {
+        alert("You can only delete your own posts.");
+        return;
+      }
+
+      try {
+        await remove(ref(db, "posts/" + postId));
+        alert("Post deleted successfully.");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to delete post: " + error.message);
+      }
     }
 
-    const posts = JSON.parse(localStorage.getItem("posts")) || [];
-    const container = document.getElementById("posts");
+    function renderMyPosts() {
+      if (!container) return;
 
-    const myPosts = posts.filter(post => post.email === currentUser.email);
+      container.innerHTML = "";
 
-    if (myPosts.length === 0) {
-      container.innerHTML = '<p class="empty">You have not posted anything yet.</p>';
-    } else {
-      myPosts.forEach((post, index) => {
+      if (!currentUser) return;
 
-const originalIndex = posts.findIndex(p =>
-  p.name === post.name &&
-  p.speak === post.speak &&
-  p.learn === post.learn &&
-  p.content === post.content
-);
+      const myPosts = allPosts.filter(post => post.uid === currentUser.uid);
 
-const div = document.createElement("div");
-div.className = "post";
+      if (myPosts.length === 0) {
+        container.innerHTML = '<p class="empty">You have not posted anything yet.</p>';
+        return;
+      }
 
-div.innerHTML = `
-<h3>👤 ${post.name}</h3>
-<p><strong>Speaks:</strong> ${post.speak}</p>
-<p><strong>Learning:</strong> ${post.learn}</p>
-<p><strong>Introduction:</strong> ${post.content}</p>
-<p><strong>Contact:</strong> ${post.contact || "Not provided"}</p>
+      myPosts.forEach((post) => {
+        const div = document.createElement("div");
+        div.className = "post";
 
-<button onclick="deletePost(${originalIndex})">Delete</button>
-`;
+        const avatarSrc = post.avatar && post.avatar.trim() !== ""
+          ? post.avatar
+          : "https://via.placeholder.com/60";
 
-container.appendChild(div);
+        div.innerHTML = `
+          <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
+          <h3>👤 ${post.name || "Unknown User"}</h3>
+          <p><strong>Speaks:</strong> ${post.speak || "Not provided"}</p>
+          <p><strong>Learning:</strong> ${post.learn || "Not provided"}</p>
+          <p><strong>Introduction:</strong> ${post.content || ""}</p>
+          <p><strong>Contact:</strong> ${post.contact || "Not provided"}</p>
+          <button class="delete-btn" data-id="${post.id}" data-uid="${post.uid}">Delete</button>
+        `;
 
-});
-function deletePost(index){
+        container.appendChild(div);
+      });
 
-let posts = JSON.parse(localStorage.getItem("posts")) || [];
-
-posts.splice(index,1);
-
-localStorage.setItem("posts", JSON.stringify(posts));
-
-location.reload();
-
-}
+      document.querySelectorAll(".delete-btn").forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          const postId = e.target.getAttribute("data-id");
+          const postUid = e.target.getAttribute("data-uid");
+          await deletePost(postId, postUid);
+        });
+      });
     }
   </script>
 </body>
