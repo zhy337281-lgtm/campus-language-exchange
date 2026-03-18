@@ -1,44 +1,142 @@
-<script type="module">
-  import { auth, db } from "./firebase.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-  import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile</title>
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      alert("Please login first");
-      window.location.href = "login.html";
-      return;
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
     }
 
-    try {
-      console.log("Logged in user:", user.uid, user.email);
-      console.log("Reading path:", "users/" + user.uid);
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
 
-      const snapshot = await get(ref(db, "users/" + user.uid));
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin-left: 16px;
+      font-size: 16px;
+      font-weight: normal;
+    }
 
-      console.log("Snapshot exists:", snapshot.exists());
-      console.log("Snapshot value:", snapshot.val());
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
 
-      if (!snapshot.exists()) {
-        alert("User data not found in database.");
+    .avatar {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+      display: block;
+      margin-bottom: 20px;
+    }
+
+    .info {
+      margin: 8px 0;
+      font-size: 16px;
+    }
+
+    .button {
+      margin-top: 12px;
+      margin-right: 10px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Campus Language Exchange</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="partners.html">Find Partner</a>
+      <a href="create.html">Create Post</a>
+      <a href="myposts.html">My Posts</a>
+      <a href="profile.html">Profile</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <img id="avatar" class="avatar" src="https://via.placeholder.com/90" alt="Avatar">
+
+    <h2 id="name">Loading...</h2>
+
+    <div class="info"><strong>Email:</strong> <span id="email"></span></div>
+    <div class="info"><strong>Speaks:</strong> <span id="speak"></span></div>
+    <div class="info"><strong>Learning:</strong> <span id="learn"></span></div>
+    <div class="info"><strong>Instagram:</strong> <span id="contact"></span></div>
+
+    <button class="button" onclick="window.location.href='edit-profile.html'">Edit Profile</button>
+    <button class="button" onclick="window.location.href='myposts.html'">My Posts</button>
+    <button class="button" onclick="window.location.href='change-password.html'">Change Password</button>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please login first");
+        window.location.href = "login.html";
         return;
       }
 
-      const data = snapshot.val();
+      try {
+        const snapshot = await get(ref(db, "users/" + user.uid));
 
-      document.getElementById("name").innerText = data.name || "No name";
-      document.getElementById("email").innerText = data.email || user.email;
-      document.getElementById("speak").innerText = data.speak || "Not set";
-      document.getElementById("learn").innerText = data.learn || "Not set";
-      document.getElementById("contact").innerText = data.contact || "Not set";
+        if (!snapshot.exists()) {
+          alert("User data not found in database.");
+          return;
+        }
 
-      document.getElementById("avatar").src =
-        data.avatar && data.avatar.trim() !== ""
+        const data = snapshot.val();
+
+        const nameEl = document.getElementById("name");
+        const emailEl = document.getElementById("email");
+        const speakEl = document.getElementById("speak");
+        const learnEl = document.getElementById("learn");
+        const contactEl = document.getElementById("contact");
+        const avatarEl = document.getElementById("avatar");
+
+        nameEl.innerText = data.name || "No name";
+        emailEl.innerText = data.email || user.email;
+        speakEl.innerText = data.speak || "Not set";
+        learnEl.innerText = data.learn || "Not set";
+        contactEl.innerText = data.contact || "Not set";
+        avatarEl.src = data.avatar && data.avatar.trim() !== ""
           ? data.avatar
           : "https://via.placeholder.com/90";
-    } catch (error) {
-      console.error("Profile load error:", error);
-      alert("Failed to load profile: " + error.message);
-    }
-  });
-</script>
+
+      } catch (error) {
+        console.error("Profile load error:", error);
+        alert("Failed to load profile: " + error.message);
+      }
+    });
+  </script>
+</body>
+</html>
