@@ -179,6 +179,26 @@
     .message-btn {
       background: #7c3aed;
     }
+
+    .mini-action-btn {
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: white;
+    }
+
+    .mini-friend-btn {
+      background: #16a34a;
+    }
+
+    .mini-message-btn {
+      background: #7c3aed;
+    }
+
+    .mini-delete-btn {
+      background: #dc2626;
+    }
   </style>
 </head>
 <body>
@@ -496,6 +516,9 @@
 
         const canDeleteComment = currentUser && currentUser.uid === comment.uid;
 
+        const safeName = escapeHtml(comment.name || "Anonymous");
+        const rawAvatar = comment.avatar || "";
+
         return `
           <div class="comment-item">
             <div style="display:flex; gap:10px; align-items:flex-start;">
@@ -507,25 +530,47 @@
 
               <div style="flex:1;">
                 <div class="comment-meta">
-                  ${escapeHtml(comment.name || "Anonymous")} · ${formatTime(comment.createdAt)}
+                  ${safeName} · ${formatTime(comment.createdAt)}
                 </div>
 
                 <div class="comment-text">
                   ${escapeHtml(comment.text || "")}
                 </div>
 
-                ${
-                  canDeleteComment
-                    ? `<button
-                        class="delete-comment-btn"
-                        data-post-id="${postId}"
-                        data-comment-id="${comment.id}"
-                        style="margin-top:6px; background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer;"
-                      >
-                        Delete
-                      </button>`
-                    : ""
-                }
+                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                  ${
+                    currentUser && currentUser.uid !== comment.uid
+                      ? `
+                        <button
+                          class="mini-action-btn mini-friend-btn"
+                          onclick="handleCommentFriendRequest('${comment.uid}', '${safeName}', '${rawAvatar}')"
+                        >
+                          Add Friend
+                        </button>
+
+                        <button
+                          class="mini-action-btn mini-message-btn"
+                          onclick="handleCommentMessage('${comment.uid}')"
+                        >
+                          Message
+                        </button>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    canDeleteComment
+                      ? `
+                        <button
+                          class="mini-action-btn mini-delete-btn"
+                          onclick="handleDeleteComment('${postId}', '${comment.id}')"
+                        >
+                          Delete
+                        </button>
+                      `
+                      : ""
+                  }
+                </div>
               </div>
             </div>
           </div>
@@ -570,20 +615,26 @@
           <p><strong>Introduction:</strong> ${escapeHtml(post.content || "")}</p>
           <p><strong>Contact:</strong> ${escapeHtml(post.contact || "Not provided")}</p>
 
-          ${canDelete ? `<button class="delete-btn" data-id="${post.id}" data-uid="${post.uid}">Delete</button>` : ""}
+          ${
+            canDelete
+              ? `<button class="delete-btn" onclick="handleDeletePost('${post.id}', '${post.uid}')">Delete</button>`
+              : ""
+          }
 
           ${
             currentUser && currentUser.uid !== post.uid
               ? `
                 <div class="action-row">
-                  <button class="friend-btn add-friend-btn"
+                  <button
+                    class="friend-btn"
                     data-uid="${post.uid}"
                     data-name="${escapeHtml(post.name || "")}"
                     data-avatar="${post.avatar || ""}">
                     Add Friend
                   </button>
 
-                  <button class="message-btn"
+                  <button
+                    class="message-btn"
                     data-uid="${post.uid}">
                     Message
                   </button>
@@ -612,22 +663,6 @@
         container.appendChild(card);
       });
 
-      document.querySelectorAll(".delete-btn").forEach((button) => {
-        button.addEventListener("click", async (e) => {
-          const postId = e.target.getAttribute("data-id");
-          const postUid = e.target.getAttribute("data-uid");
-          await deletePost(postId, postUid);
-        });
-      });
-
-      document.querySelectorAll(".delete-comment-btn").forEach((btn) => {
-        btn.addEventListener("click", async (e) => {
-          const postId = e.target.getAttribute("data-post-id");
-          const commentId = e.target.getAttribute("data-comment-id");
-          await deleteComment(postId, commentId);
-        });
-      });
-
       document.querySelectorAll(".comment-btn").forEach((button) => {
         button.addEventListener("click", async (e) => {
           const postId = e.target.getAttribute("data-comment-post-id");
@@ -635,7 +670,7 @@
         });
       });
 
-      document.querySelectorAll(".add-friend-btn").forEach((button) => {
+      document.querySelectorAll(".friend-btn").forEach((button) => {
         button.addEventListener("click", async (e) => {
           const targetUid = e.target.getAttribute("data-uid");
           const targetName = e.target.getAttribute("data-name");
@@ -653,6 +688,11 @@
     }
 
     document.getElementById("searchInput").addEventListener("input", renderPosts);
+
+    window.handleDeleteComment = deleteComment;
+    window.handleCommentFriendRequest = sendFriendRequest;
+    window.handleCommentMessage = openPrivateChat;
+    window.handleDeletePost = deletePost;
   </script>
 </body>
 </html>
