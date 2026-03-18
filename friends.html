@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Friends</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin-left: 16px;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .friend-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+    }
+
+    .name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .meta {
+      color: #6b7280;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .message-btn {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+
+    .empty {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Campus Language Exchange</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="partners.html">Find Partner</a>
+      <a href="requests.html">Requests</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
+      <a href="profile.html">Profile</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>My Friends</h2>
+    <div id="friends-container"></div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const container = document.getElementById("friends-container");
+    let currentUser = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please login first.");
+        window.location.href = "login.html";
+        return;
+      }
+
+      currentUser = user;
+      await loadFriends();
+    });
+
+    async function openPrivateChat(targetUid) {
+      if (!currentUser) return;
+
+      try {
+        const chatsSnapshot = await get(ref(db, "chats"));
+        const chats = chatsSnapshot.val() || {};
+
+        let foundChatId = null;
+
+        for (const [chatId, chat] of Object.entries(chats)) {
+          if (
+            chat.type === "private" &&
+            chat.memberIds &&
+            chat.memberIds[currentUser.uid] &&
+            chat.memberIds[targetUid]
+          ) {
+            foundChatId = chatId;
+            break;
+          }
+        }
+
+        if (!foundChatId) {
+          const newChatRef = push(ref(db, "chats"));
+          foundChatId = newChatRef.key;
+
+          await set(newChatRef, {
+            type: "private",
+            memberIds: {
+              [currentUser.uid]: true,
+              [targetUid]: true
+            },
+            memberList: [currentUser.uid, targetUid],
+            createdAt: Date.now(),
+            lastMessage: "",
+            lastMessageAt: Date.now()
+          });
+        }
+
+        window.location.href = `chat.html?chatId=${foundChatId}`;
+      } catch (error) {
+        console.error(error);
+        alert("Failed to open chat: " + error.message);
+      }
+    }
+
+    async function loadFriends() {
+      try {
+        const friendsSnapshot = await get(ref(db, `friends/${currentUser.uid}`));
+        const usersSnapshot = await get(ref(db, "users"));
+
+        const friendsData = friendsSnapshot.val() || {};
+        const usersData = usersSnapshot.val() || {};
+
+        const friendUids = Object.keys(friendsData);
+
+        if (friendUids.length === 0) {
+          container.innerHTML = `<p class="empty">You have no friends yet.</p>`;
+          return;
+        }
+
+        container.innerHTML = "";
+
+        friendUids.forEach(uid => {
+          const userData = usersData[uid];
+          if (!userData) return;
+
+          const div = document.createElement("div");
+          div.className = "friend-card";
+
+          const avatar = userData.avatar && userData.avatar.trim() !== ""
+            ? userData.avatar
+            : "https://via.placeholder.com/56";
+
+          div.innerHTML = `
+            <div class="left">
+              <img class="avatar" src="${avatar}" alt="avatar">
+              <div>
+                <div class="name">${userData.name || "Unknown User"}</div>
+                <div class="meta">${userData.email || ""}</div>
+              </div>
+            </div>
+
+            <button class="message-btn" data-uid="${uid}">Message</button>
+          `;
+
+          container.appendChild(div);
+        });
+
+        document.querySelectorAll(".message-btn").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            const targetUid = e.target.getAttribute("data-uid");
+            await openPrivateChat(targetUid);
+          });
+        });
+
+      } catch (error) {
+        console.error(error);
+        alert("Failed to load friends: " + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

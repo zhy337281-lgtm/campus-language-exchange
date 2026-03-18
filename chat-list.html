@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chats</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      margin-left: 16px;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .chat-card {
+      padding: 16px 0;
+      border-bottom: 1px solid #e5e7eb;
+      cursor: pointer;
+    }
+
+    .chat-name {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .chat-meta {
+      margin-top: 6px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .empty {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Campus Language Exchange</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="partners.html">Find Partner</a>
+      <a href="requests.html">Requests</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
+      <a href="profile.html">Profile</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>My Chats</h2>
+    <div id="chat-list-container"></div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const container = document.getElementById("chat-list-container");
+    let currentUser = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please login first.");
+        window.location.href = "login.html";
+        return;
+      }
+
+      currentUser = user;
+      await loadChats();
+    });
+
+    async function loadChats() {
+      try {
+        const chatsSnapshot = await get(ref(db, "chats"));
+        const usersSnapshot = await get(ref(db, "users"));
+
+        const chats = chatsSnapshot.val() || {};
+        const users = usersSnapshot.val() || {};
+
+        const myChats = [];
+
+        Object.entries(chats).forEach(([chatId, chat]) => {
+          if (
+            chat.type === "private" &&
+            chat.memberIds &&
+            chat.memberIds[currentUser.uid]
+          ) {
+            const otherUid = (chat.memberList || []).find(uid => uid !== currentUser.uid);
+            const otherUser = users[otherUid] || {};
+
+            myChats.push({
+              chatId,
+              otherUid,
+              otherName: otherUser.name || "Unknown User",
+              lastMessage: chat.lastMessage || "",
+              lastMessageAt: chat.lastMessageAt || 0
+            });
+          }
+        });
+
+        myChats.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+
+        if (myChats.length === 0) {
+          container.innerHTML = `<p class="empty">No chats yet.</p>`;
+          return;
+        }
+
+        container.innerHTML = "";
+
+        myChats.forEach(chat => {
+          const div = document.createElement("div");
+          div.className = "chat-card";
+          div.innerHTML = `
+            <div class="chat-name">${chat.otherName}</div>
+            <div class="chat-meta">${chat.lastMessage || "No messages yet"}</div>
+          `;
+
+          div.addEventListener("click", () => {
+            window.location.href = `chat.html?chatId=${chat.chatId}`;
+          });
+
+          container.appendChild(div);
+        });
+
+      } catch (error) {
+        console.error(error);
+        alert("Failed to load chats: " + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

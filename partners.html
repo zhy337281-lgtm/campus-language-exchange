@@ -155,6 +155,30 @@
       font-size: 14px;
       margin-bottom: 8px;
     }
+
+    .action-row {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .friend-btn,
+    .message-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+    }
+
+    .friend-btn {
+      background: #16a34a;
+    }
+
+    .message-btn {
+      background: #7c3aed;
+    }
   </style>
 </head>
 <body>
@@ -165,6 +189,9 @@
       <a href="partners.html">Find Partner</a>
       <a href="create.html">Create Post</a>
       <a href="myposts.html">My Posts</a>
+      <a href="requests.html">Requests</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
       <a href="profile.html">Profile</a>
     </div>
   </div>
@@ -220,19 +247,16 @@
 
     onValue(ref(db, "posts"), (snapshot) => {
       allPosts = [];
+      const data = snapshot.val() || {};
 
-      const data = snapshot.val();
-      if (data) {
-        Object.entries(data).forEach(([id, post]) => {
-          allPosts.push({
-            id,
-            ...post
-          });
+      Object.entries(data).forEach(([id, post]) => {
+        allPosts.push({
+          id,
+          ...post
         });
+      });
 
-        allPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      }
-
+      allPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       renderPosts();
     });
 
@@ -281,42 +305,13 @@
       try {
         const newCommentRef = push(ref(db, "comments/" + postId));
 
-       await set(newCommentRef, {
-  uid: currentUser.uid,
-  name: currentProfile?.name || currentUser.email || "Anonymous",
-  avatar: currentProfile?.avatar || "",
-  text: text,
-  createdAt: Date.now()
-});
-    async function deleteComment(postId, commentId) {
-  if (!currentUser) {
-    alert("Please login first.");
-    return;
-  }
-
-  try {
-    const commentRef = ref(db, `comments/${postId}/${commentId}`);
-    const snapshot = await get(commentRef);
-
-    if (!snapshot.exists()) {
-      alert("Comment not found.");
-      return;
-    }
-
-    const data = snapshot.val();
-
-    if (data.uid !== currentUser.uid) {
-      alert("You can only delete your own comment.");
-      return;
-    }
-
-    await remove(commentRef);
-
-  } catch (error) {
-    console.error(error);
-    alert("Delete failed: " + error.message);
-  }
-}
+        await set(newCommentRef, {
+          uid: currentUser.uid,
+          name: currentProfile?.name || currentUser.email || "Anonymous",
+          avatar: currentProfile?.avatar || "",
+          text: text,
+          createdAt: Date.now()
+        });
 
         input.value = "";
       } catch (error) {
@@ -325,10 +320,156 @@
       }
     }
 
+    async function deleteComment(postId, commentId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      try {
+        const commentRef = ref(db, `comments/${postId}/${commentId}`);
+        const snapshot = await get(commentRef);
+
+        if (!snapshot.exists()) {
+          alert("Comment not found.");
+          return;
+        }
+
+        const data = snapshot.val();
+
+        if (data.uid !== currentUser.uid) {
+          alert("You can only delete your own comment.");
+          return;
+        }
+
+        await remove(commentRef);
+      } catch (error) {
+        console.error(error);
+        alert("Delete failed: " + error.message);
+      }
+    }
+
+    async function sendFriendRequest(targetUid, targetName, targetAvatar) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      if (currentUser.uid === targetUid) {
+        alert("You cannot add yourself.");
+        return;
+      }
+
+      try {
+        const friendsSnapshot = await get(ref(db, `friends/${currentUser.uid}`));
+        const myFriends = friendsSnapshot.val() || {};
+
+        if (myFriends[targetUid]) {
+          alert("You are already friends.");
+          return;
+        }
+
+        const requestsSnapshot = await get(ref(db, "friendRequests"));
+        const existing = requestsSnapshot.val() || {};
+
+        const duplicate = Object.values(existing).some(req =>
+          (
+            req.fromUid === currentUser.uid &&
+            req.toUid === targetUid &&
+            req.status === "pending"
+          ) ||
+          (
+            req.fromUid === targetUid &&
+            req.toUid === currentUser.uid &&
+            req.status === "pending"
+          )
+        );
+
+        if (duplicate) {
+          alert("A friend request already exists.");
+          return;
+        }
+
+        const newRequestRef = push(ref(db, "friendRequests"));
+
+        await set(newRequestRef, {
+          fromUid: currentUser.uid,
+          fromName: currentProfile?.name || currentUser.email,
+          fromAvatar: currentProfile?.avatar || "",
+          toUid: targetUid,
+          toName: targetName || "",
+          toAvatar: targetAvatar || "",
+          status: "pending",
+          createdAt: Date.now()
+        });
+
+        alert("Friend request sent.");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to send friend request: " + error.message);
+      }
+    }
+
+    async function openPrivateChat(targetUid) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      try {
+        const chatsSnapshot = await get(ref(db, "chats"));
+        const chats = chatsSnapshot.val() || {};
+
+        let foundChatId = null;
+
+        for (const [chatId, chat] of Object.entries(chats)) {
+          if (
+            chat.type === "private" &&
+            chat.memberIds &&
+            chat.memberIds[currentUser.uid] &&
+            chat.memberIds[targetUid]
+          ) {
+            foundChatId = chatId;
+            break;
+          }
+        }
+
+        if (!foundChatId) {
+          const newChatRef = push(ref(db, "chats"));
+          foundChatId = newChatRef.key;
+
+          await set(newChatRef, {
+            type: "private",
+            memberIds: {
+              [currentUser.uid]: true,
+              [targetUid]: true
+            },
+            memberList: [currentUser.uid, targetUid],
+            createdAt: Date.now(),
+            lastMessage: "",
+            lastMessageAt: Date.now()
+          });
+        }
+
+        window.location.href = `chat.html?chatId=${foundChatId}`;
+      } catch (error) {
+        console.error(error);
+        alert("Failed to open chat: " + error.message);
+      }
+    }
+
     function formatTime(timestamp) {
       if (!timestamp) return "";
-      const date = new Date(timestamp);
-      return date.toLocaleString();
+      return new Date(timestamp).toLocaleString();
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     function renderComments(postId) {
@@ -349,56 +490,47 @@
       }
 
       return commentsArray.map(comment => {
-  const commentAvatar = comment.avatar && comment.avatar.trim() !== ""
-    ? comment.avatar
-    : "https://via.placeholder.com/40";
+        const commentAvatar = comment.avatar && comment.avatar.trim() !== ""
+          ? comment.avatar
+          : "https://via.placeholder.com/40";
 
-  const canDeleteComment = currentUser && currentUser.uid === comment.uid;
+        const canDeleteComment = currentUser && currentUser.uid === comment.uid;
 
-  return `
-    <div class="comment-item">
-      <div style="display:flex; gap:10px; align-items:flex-start;">
-        <img 
-          src="${commentAvatar}" 
-          style="width:40px; height:40px; border-radius:50%; object-fit:cover;"
-        >
+        return `
+          <div class="comment-item">
+            <div style="display:flex; gap:10px; align-items:flex-start;">
+              <img
+                src="${commentAvatar}"
+                alt="avatar"
+                style="width:40px; height:40px; border-radius:50%; object-fit:cover; background:#dbeafe;"
+              >
 
-        <div style="flex:1;">
-          <div class="comment-meta">
-            ${comment.name || "Anonymous"} · ${formatTime(comment.createdAt)}
+              <div style="flex:1;">
+                <div class="comment-meta">
+                  ${escapeHtml(comment.name || "Anonymous")} · ${formatTime(comment.createdAt)}
+                </div>
+
+                <div class="comment-text">
+                  ${escapeHtml(comment.text || "")}
+                </div>
+
+                ${
+                  canDeleteComment
+                    ? `<button
+                        class="delete-comment-btn"
+                        data-post-id="${postId}"
+                        data-comment-id="${comment.id}"
+                        style="margin-top:6px; background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer;"
+                      >
+                        Delete
+                      </button>`
+                    : ""
+                }
+              </div>
+            </div>
           </div>
-
-          <div class="comment-text">
-            ${escapeHtml(comment.text || "")}
-          </div>
-
-          ${
-            canDeleteComment
-              ? `<button 
-                  class="delete-comment-btn" 
-                  data-post-id="${postId}" 
-                  data-comment-id="${comment.id}"
-                  style="margin-top:6px; background:#dc2626; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer;"
-                >
-                  Delete
-                </button>`
-              : ""
-          }
-
-        </div>
-      </div>
-    </div>
-  `;
-}).join("");
-    }
-
-    function escapeHtml(text) {
-      return text
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        `;
+      }).join("");
     }
 
     function renderPosts() {
@@ -440,6 +572,26 @@
 
           ${canDelete ? `<button class="delete-btn" data-id="${post.id}" data-uid="${post.uid}">Delete</button>` : ""}
 
+          ${
+            currentUser && currentUser.uid !== post.uid
+              ? `
+                <div class="action-row">
+                  <button class="friend-btn add-friend-btn"
+                    data-uid="${post.uid}"
+                    data-name="${escapeHtml(post.name || "")}"
+                    data-avatar="${post.avatar || ""}">
+                    Add Friend
+                  </button>
+
+                  <button class="message-btn"
+                    data-uid="${post.uid}">
+                    Message
+                  </button>
+                </div>
+              `
+              : ""
+          }
+
           <div class="comments-section">
             <h4>Comments</h4>
             <div class="comments-list" id="comments-${post.id}">
@@ -460,19 +612,42 @@
         container.appendChild(card);
       });
 
-      document.querySelectorAll(".delete-comment-btn").forEach((btn) => {
-  btn.addEventListener("click", async (e) => {
-    const postId = e.target.getAttribute("data-post-id");
-    const commentId = e.target.getAttribute("data-comment-id");
+      document.querySelectorAll(".delete-btn").forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          const postId = e.target.getAttribute("data-id");
+          const postUid = e.target.getAttribute("data-uid");
+          await deletePost(postId, postUid);
+        });
+      });
 
-    await deleteComment(postId, commentId);
-  });
+      document.querySelectorAll(".delete-comment-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          const postId = e.target.getAttribute("data-post-id");
+          const commentId = e.target.getAttribute("data-comment-id");
+          await deleteComment(postId, commentId);
+        });
       });
 
       document.querySelectorAll(".comment-btn").forEach((button) => {
         button.addEventListener("click", async (e) => {
           const postId = e.target.getAttribute("data-comment-post-id");
           await submitComment(postId);
+        });
+      });
+
+      document.querySelectorAll(".add-friend-btn").forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          const targetUid = e.target.getAttribute("data-uid");
+          const targetName = e.target.getAttribute("data-name");
+          const targetAvatar = e.target.getAttribute("data-avatar");
+          await sendFriendRequest(targetUid, targetName, targetAvatar);
+        });
+      });
+
+      document.querySelectorAll(".message-btn").forEach((button) => {
+        button.addEventListener("click", async (e) => {
+          const targetUid = e.target.getAttribute("data-uid");
+          await openPrivateChat(targetUid);
         });
       });
     }

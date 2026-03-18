@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .messages {
+      min-height: 400px;
+      max-height: 500px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 16px;
+      background: #f9fafb;
+      margin-bottom: 16px;
+    }
+
+    .message {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      max-width: 70%;
+    }
+
+    .mine {
+      background: #dbeafe;
+      margin-left: auto;
+    }
+
+    .other {
+      background: #e5e7eb;
+      margin-right: auto;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-row input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .input-row button {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">Private Chat</div>
+
+  <div class="container">
+    <div id="messages" class="messages"></div>
+
+    <div class="input-row">
+      <input type="text" id="messageInput" placeholder="Type a message...">
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, onValue, push, set, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const chatId = params.get("chatId");
+
+    const messagesEl = document.getElementById("messages");
+    const inputEl = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    let currentUser = null;
+    let currentProfile = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please login first.");
+        window.location.href = "login.html";
+        return;
+      }
+
+      currentUser = user;
+
+      const profileSnapshot = await get(ref(db, `users/${user.uid}`));
+      currentProfile = profileSnapshot.exists() ? profileSnapshot.val() : null;
+
+      loadMessages();
+    });
+
+    function formatTime(timestamp) {
+      if (!timestamp) return "";
+      return new Date(timestamp).toLocaleString();
+    }
+
+    function loadMessages() {
+      onValue(ref(db, `messages/${chatId}`), (snapshot) => {
+        messagesEl.innerHTML = "";
+        const data = snapshot.val() || {};
+
+        const messages = Object.entries(data)
+          .map(([id, msg]) => ({ id, ...msg }))
+          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+        messages.forEach(msg => {
+          const div = document.createElement("div");
+          div.className = "message " + (msg.senderUid === currentUser.uid ? "mine" : "other");
+
+          div.innerHTML = `
+            <div class="meta">${msg.senderName || "Unknown"} · ${formatTime(msg.createdAt)}</div>
+            <div>${msg.text || ""}</div>
+          `;
+
+          messagesEl.appendChild(div);
+        });
+
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      });
+    }
+
+    async function sendMessage() {
+      if (!currentUser) return;
+
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      try {
+        const newMsgRef = push(ref(db, `messages/${chatId}`));
+
+        await set(newMsgRef, {
+          senderUid: currentUser.uid,
+          senderName: currentProfile?.name || currentUser.email,
+          senderAvatar: currentProfile?.avatar || "",
+          text,
+          createdAt: Date.now()
+        });
+
+        await set(ref(db, `chats/${chatId}/lastMessage`), text);
+        await set(ref(db, `chats/${chatId}/lastMessageAt`), Date.now());
+
+        inputEl.value = "";
+      } catch (error) {
+        console.error(error);
+        alert("Failed to send message: " + error.message);
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
