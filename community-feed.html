@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Community Feed</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    #userInfo {
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .top-actions {
+      margin-bottom: 20px;
+    }
+
+    .top-actions button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+
+    .post-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+    }
+
+    .post-name {
+      font-weight: bold;
+      color: #1d4ed8;
+    }
+
+    .post-time {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .post-text {
+      color: #111827;
+      line-height: 1.7;
+      margin-bottom: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .post-image {
+      width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #f9fafb;
+      margin-bottom: 14px;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .action-row button {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      color: white;
+    }
+
+    .like-btn { background: #dc2626; }
+    .favorite-btn { background: #d97706; }
+    .delete-btn { background: #374151; }
+
+    .comments-section {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .comment-item {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    .comment-meta {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .comment-text {
+      color: #111827;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .comment-input-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .comment-input-row input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .comment-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+
+    .empty {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Community Feed</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="community.html">Community</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
+      <a href="profile.html">Profile</a>
+      <span id="userInfo"></span>
+      <a href="login.html" id="authLink">Login</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="top-actions">
+      <button id="createBtn">Create Community Post</button>
+    </div>
+
+    <div id="feedContainer"></div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, onValue, get, push, set, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const userInfo = document.getElementById("userInfo");
+    const authLink = document.getElementById("authLink");
+    const feedContainer = document.getElementById("feedContainer");
+    const createBtn = document.getElementById("createBtn");
+
+    let currentUser = null;
+    let currentProfile = null;
+    let allPosts = [];
+    let allComments = {};
+    let allLikes = {};
+    let myFavorites = {};
+
+    createBtn.addEventListener("click", () => {
+      window.location.href = "community-create.html";
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user || null;
+
+      if (user) {
+        try {
+          const snapshot = await get(ref(db, "users/" + user.uid));
+          currentProfile = snapshot.exists() ? snapshot.val() : null;
+          userInfo.innerText = "👤 " + (currentProfile?.name || user.email);
+        } catch (error) {
+          console.error(error);
+          userInfo.innerText = "👤 " + user.email;
+        }
+
+        onValue(ref(db, `communityFavorites/${user.uid}`), (snapshot) => {
+          myFavorites = snapshot.val() || {};
+          renderFeed();
+        });
+
+        authLink.innerText = "Logout";
+        authLink.href = "#";
+        authLink.onclick = async (e) => {
+          e.preventDefault();
+          await signOut(auth);
+          window.location.href = "login.html";
+        };
+      } else {
+        currentProfile = null;
+        myFavorites = {};
+        userInfo.innerText = "";
+        authLink.innerText = "Login";
+        authLink.href = "login.html";
+        authLink.onclick = null;
+      }
+
+      renderFeed();
+    });
+
+    onValue(ref(db, "communityPosts"), (snapshot) => {
+      allPosts = [];
+      const data = snapshot.val() || {};
+
+      Object.entries(data).forEach(([id, post]) => {
+        allPosts.push({ id, ...post });
+      });
+
+      allPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      renderFeed();
+    });
+
+    onValue(ref(db, "communityComments"), (snapshot) => {
+      allComments = snapshot.val() || {};
+      renderFeed();
+    });
+
+    onValue(ref(db, "communityLikes"), (snapshot) => {
+      allLikes = snapshot.val() || {};
+      renderFeed();
+    });
+
+    function formatTime(timestamp) {
+      if (!timestamp) return "";
+      return new Date(timestamp).toLocaleString();
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function toggleLike(postId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const likeRef = ref(db, `communityLikes/${postId}/${currentUser.uid}`);
+      const snapshot = await get(likeRef);
+
+      if (snapshot.exists()) {
+        await remove(likeRef);
+      } else {
+        await set(likeRef, true);
+      }
+    }
+
+    async function toggleFavorite(postId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const favRef = ref(db, `communityFavorites/${currentUser.uid}/${postId}`);
+      const snapshot = await get(favRef);
+
+      if (snapshot.exists()) {
+        await remove(favRef);
+      } else {
+        await set(favRef, true);
+      }
+    }
+
+    async function deleteCommunityPost(postId, postUid) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      if (currentUser.uid !== postUid) {
+        alert("You can only delete your own post.");
+        return;
+      }
+
+      await remove(ref(db, `communityPosts/${postId}`));
+      await remove(ref(db, `communityComments/${postId}`));
+      await remove(ref(db, `communityLikes/${postId}`));
+      await remove(ref(db, `communityFavorites/${currentUser.uid}/${postId}`));
+    }
+
+    async function submitCommunityComment(postId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const input = document.getElementById(`community-comment-input-${postId}`);
+      if (!input) return;
+
+      const text = input.value.trim();
+
+      if (!text) {
+        alert("Please write a comment.");
+        return;
+      }
+
+      const newCommentRef = push(ref(db, `communityComments/${postId}`));
+
+      await set(newCommentRef, {
+        uid: currentUser.uid,
+        name: currentProfile?.name || currentUser.email,
+        avatar: currentProfile?.avatar || "",
+        text,
+        createdAt: Date.now()
+      });
+
+      input.value = "";
+    }
+
+    function renderComments(postId) {
+      const commentGroup = allComments[postId];
+      if (!commentGroup) {
+        return `<p class="empty">No comments yet.</p>`;
+      }
+
+      const commentsArray = Object.entries(commentGroup)
+        .map(([id, comment]) => ({ id, ...comment }))
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+      if (commentsArray.length === 0) {
+        return `<p class="empty">No comments yet.</p>`;
+      }
+
+      return commentsArray.map(comment => {
+        const avatar = comment.avatar && comment.avatar.trim() !== ""
+          ? comment.avatar
+          : "https://via.placeholder.com/36";
+
+        return `
+          <div class="comment-item">
+            <div style="display:flex; gap:10px; align-items:flex-start;">
+              <img src="${avatar}" class="avatar" style="width:36px; height:36px;" alt="avatar">
+              <div style="flex:1;">
+                <div class="comment-meta">${escapeHtml(comment.name || "Anonymous")} · ${formatTime(comment.createdAt)}</div>
+                <div class="comment-text">${escapeHtml(comment.text || "")}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderFeed() {
+      if (!feedContainer) return;
+
+      if (allPosts.length === 0) {
+        feedContainer.innerHTML = `<p class="empty">No community posts yet.</p>`;
+        return;
+      }
+
+      feedContainer.innerHTML = "";
+
+      allPosts.forEach(post => {
+        const div = document.createElement("div");
+        div.className = "post-card";
+
+        const avatar = post.avatar && post.avatar.trim() !== ""
+          ? post.avatar
+          : "https://via.placeholder.com/52";
+
+        const likeCount = allLikes[post.id] ? Object.keys(allLikes[post.id]).length : 0;
+        const liked = currentUser && allLikes[post.id] && allLikes[post.id][currentUser.uid];
+        const favorited = currentUser && myFavorites[post.id];
+
+        div.innerHTML = `
+          <div class="post-header">
+            <img src="${avatar}" class="avatar" alt="avatar">
+            <div>
+              <div class="post-name">${escapeHtml(post.name || "Unknown User")}</div>
+              <div class="post-time">${formatTime(post.createdAt)}</div>
+            </div>
+          </div>
+
+          <div class="post-text">${escapeHtml(post.text || "")}</div>
+          ${post.image ? `<img src="${post.image}" class="post-image" alt="post image">` : ""}
+
+          <div class="action-row">
+            <button class="like-btn" onclick="handleToggleCommunityLike('${post.id}')">
+              ${liked ? "Unlike" : "Like"} (${likeCount})
+            </button>
+
+            <button class="favorite-btn" onclick="handleToggleCommunityFavorite('${post.id}')">
+              ${favorited ? "Unfavorite" : "Favorite"}
+            </button>
+
+            ${
+              currentUser && currentUser.uid === post.uid
+                ? `<button class="delete-btn" onclick="handleDeleteCommunityPost('${post.id}', '${post.uid}')">Delete</button>`
+                : ""
+            }
+          </div>
+
+          <div class="comments-section">
+            <h4>Comments</h4>
+            ${renderComments(post.id)}
+
+            <div class="comment-input-row">
+              <input type="text" id="community-comment-input-${post.id}" placeholder="Write a comment...">
+              <button class="comment-btn" onclick="handleSubmitCommunityComment('${post.id}')">Comment</button>
+            </div>
+          </div>
+        `;
+
+        feedContainer.appendChild(div);
+      });
+    }
+
+    window.handleToggleCommunityLike = toggleLike;
+    window.handleToggleCommunityFavorite = toggleFavorite;
+    window.handleDeleteCommunityPost = deleteCommunityPost;
+    window.handleSubmitCommunityComment = submitCommunityComment;
+  </script>
+</body>
+</html>
