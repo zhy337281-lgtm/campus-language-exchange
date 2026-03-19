@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Community</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      color: #111827;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    #userInfo {
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 50px 20px 20px;
+    }
+
+    .hero h1 {
+      font-size: 34px;
+      margin-bottom: 10px;
+    }
+
+    .hero p {
+      font-size: 18px;
+      color: #4b5563;
+    }
+
+    .module-grid {
+      max-width: 1000px;
+      margin: 30px auto 50px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 20px;
+      padding: 0 20px;
+    }
+
+    .module-card {
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .module-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    }
+
+    .module-card h3 {
+      color: #1d4ed8;
+      margin-bottom: 10px;
+    }
+
+    .module-card p {
+      color: #4b5563;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .open-btn {
+      display: inline-block;
+      padding: 9px 14px;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Campus Community</span>
+
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="community.html">Community</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
+      <a href="profile.html">Profile</a>
+      <span id="userInfo"></span>
+      <a href="login.html" id="authLink">Login</a>
+    </div>
+  </div>
+
+  <div class="hero">
+    <h1>Campus Community Zone</h1>
+    <p>Share campus life, ideas, food tips, events, daily moments, and interact with students through posts and replies.</p>
+  </div>
+
+  <div class="module-grid">
+    <div class="module-card" onclick="window.location.href='community-feed.html'">
+      <h3>Community Feed</h3>
+      <p>Browse campus posts, images, daily updates, tips, and discussions from students.</p>
+      <span class="open-btn">Open</span>
+    </div>
+
+    <div class="module-card" onclick="window.location.href='community-create.html'">
+      <h3>Create Community Post</h3>
+      <p>Post text, upload images, and share what is happening in your campus life.</p>
+      <span class="open-btn">Open</span>
+    </div>
+
+    <div class="module-card" onclick="window.location.href='community-myposts.html'">
+      <h3>My Community Posts</h3>
+      <p>Manage your own community posts, replies, and shared content.</p>
+      <span class="open-btn">Open</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const userInfo = document.getElementById("userInfo");
+    const authLink = document.getElementById("authLink");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const snapshot = await get(ref(db, "users/" + user.uid));
+          const userData = snapshot.exists() ? snapshot.val() : null;
+
+          userInfo.innerText = "👤 " + (userData?.name || user.email);
+          authLink.innerText = "Logout";
+          authLink.href = "#";
+          authLink.onclick = async (e) => {
+            e.preventDefault();
+            await signOut(auth);
+            alert("Logged out");
+            window.location.href = "login.html";
+          };
+        } catch (error) {
+          console.error(error);
+          userInfo.innerText = "👤 " + user.email;
+          authLink.innerText = "Logout";
+          authLink.href = "#";
+          authLink.onclick = async (e) => {
+            e.preventDefault();
+            await signOut(auth);
+            window.location.href = "login.html";
+          };
+        }
+      } else {
+        userInfo.innerText = "";
+        authLink.innerText = "Login";
+        authLink.href = "login.html";
+        authLink.onclick = null;
+      }
+    });
+  </script>
+</body>
+</html>
