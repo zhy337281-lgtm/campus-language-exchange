@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Register</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -60,6 +61,11 @@
       width: 100%;
     }
 
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
     .link {
       margin-top: 16px;
       text-align: center;
@@ -71,7 +77,9 @@
     }
   </style>
 </head>
+
 <body>
+
   <div class="navbar">Campus Language Exchange</div>
 
   <div class="container">
@@ -86,7 +94,7 @@
     <label>Password</label>
     <input type="password" id="password" placeholder="Enter your password" />
 
-    <button onclick="registerUser()">Register</button>
+    <button id="registerBtn" onclick="registerUser()">Register</button>
 
     <div class="link">
       Already have an account? <a href="login.html">Login</a>
@@ -98,10 +106,16 @@
     import { createUserWithEmailAndPassword, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
+    let isRegistering = false;
+
     async function registerUser() {
+
+      if (isRegistering) return; // 防止重复点击
+
       const name = document.getElementById("name").value.trim();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
+      const btn = document.getElementById("registerBtn");
 
       if (!name || !email || !password) {
         alert("Please fill in all fields.");
@@ -109,25 +123,43 @@
       }
 
       try {
+        isRegistering = true;
+
+        // UI锁
+        btn.disabled = true;
+        btn.innerText = "Registering...";
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        await sendEmailVerification(user); 
 
+        // 发验证邮件
+        await sendEmailVerification(user);
+
+        // 存用户信息
         await set(ref(db, "users/" + user.uid), {
           name: name,
           email: email,
+          avatar: "",   // 以后你会用
           createdAt: Date.now()
         });
 
-        alert("Registration successful! Please verify your email before logging in.");
+        alert("Registration successful! Please check your email for verification.");
+
         window.location.href = "login.html";
+
       } catch (error) {
         alert("Registration failed: " + error.message);
         console.error(error);
+      } finally {
+        isRegistering = false;
+
+        btn.disabled = false;
+        btn.innerText = "Register";
       }
     }
 
     window.registerUser = registerUser;
   </script>
+
 </body>
 </html>
