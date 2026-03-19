@@ -3,17 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Campus Language Exchange</title>
+  <title>Language Exchange</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
     body {
       font-family: Arial, sans-serif;
       background: #f3f4f6;
+      margin: 0;
       color: #111827;
     }
 
@@ -49,82 +44,67 @@
 
     .hero {
       text-align: center;
-      padding: 60px 20px 30px;
+      padding: 50px 20px 20px;
     }
 
     .hero h1 {
-      font-size: 36px;
-      margin-bottom: 12px;
+      font-size: 34px;
+      margin-bottom: 10px;
     }
 
     .hero p {
       font-size: 18px;
       color: #4b5563;
-      margin-bottom: 24px;
     }
 
-    .section-title {
-      text-align: center;
-      margin: 40px 0 20px;
-      font-size: 28px;
-    }
-
-    .card-container {
-      max-width: 1100px;
-      margin: 0 auto 50px;
+    .module-grid {
+      max-width: 1000px;
+      margin: 30px auto 50px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
       gap: 20px;
       padding: 0 20px;
     }
 
-    .card {
+    .module-card {
       background: white;
       border-radius: 14px;
-      padding: 24px;
+      padding: 22px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .card:hover {
+    .module-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 18px rgba(0,0,0,0.12);
     }
 
-    .card h3 {
-      margin-bottom: 10px;
+    .module-card h3 {
       color: #1d4ed8;
-      font-size: 20px;
+      margin-bottom: 10px;
     }
 
-    .card p {
+    .module-card p {
       color: #4b5563;
       line-height: 1.6;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
-    .enter-btn {
+    .open-btn {
       display: inline-block;
-      padding: 10px 16px;
+      padding: 9px 14px;
       border-radius: 8px;
       background: #2563eb;
       color: white;
-      font-size: 14px;
       text-decoration: none;
-    }
-
-    .footer {
-      text-align: center;
-      padding: 24px;
-      color: #6b7280;
       font-size: 14px;
     }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <span>Language Exchange</span>
 
     <div class="nav-links">
       <a href="index.html">Home</a>
@@ -137,34 +117,34 @@
   </div>
 
   <div class="hero">
-    <h1>Welcome to Campus Language Exchange</h1>
-    <p>Connect with students, practice languages, and build your campus community.</p>
+    <h1>Language Exchange Zone</h1>
+    <p>Explore partners, create exchange posts, manage your requests, and grow your network.</p>
   </div>
 
-  <h2 class="section-title">Features</h2>
-
-  <div class="card-container">
-    <div class="card" onclick="window.location.href='language-exchange.html'">
-      <h3>Language Exchange</h3>
-      <p>Find language partners, create exchange posts, manage requests, and build cross-cultural connections.</p>
-      <span class="enter-btn">Enter Language Exchange</span>
+  <div class="module-grid">
+    <div class="module-card" onclick="window.location.href='partners.html'">
+      <h3>Find Partner</h3>
+      <p>Browse language exchange posts, comment, add friends, and start private chats.</p>
+      <span class="open-btn">Open</span>
     </div>
 
-    <div class="card" onclick="window.location.href='community.html'">
-      <h3>Campus Community</h3>
-      <p>Share campus life, daily tips, photos, ideas, and interact with students through community posts and replies.</p>
-      <span class="enter-btn">Enter Community</span>
+    <div class="module-card" onclick="window.location.href='create.html'">
+      <h3>Create Post</h3>
+      <p>Create your own language exchange post and introduce the languages you speak and learn.</p>
+      <span class="open-btn">Open</span>
     </div>
 
-    <div class="card" onclick="window.location.href='marketplace.html'">
-      <h3>Marketplace</h3>
-      <p>Buy, sell, and exchange useful items inside your student community. This module can be expanded later.</p>
-      <span class="enter-btn">Enter Marketplace</span>
+    <div class="module-card" onclick="window.location.href='myposts.html'">
+      <h3>My Posts</h3>
+      <p>Manage your own language exchange posts and check what you have published.</p>
+      <span class="open-btn">Open</span>
     </div>
-  </div>
 
-  <div class="footer">
-    Built for students at universities starting from Science Tokyo to the world.
+    <div class="module-card" onclick="window.location.href='requests.html'">
+      <h3>Requests</h3>
+      <p>Check and manage incoming friend requests from people you met in the exchange zone.</p>
+      <span class="open-btn">Open</span>
+    </div>
   </div>
 
   <script type="module">
