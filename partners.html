@@ -23,10 +23,21 @@
       font-weight: bold;
     }
 
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
     .nav-links a {
       color: white;
       text-decoration: none;
-      margin-left: 16px;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    #userInfo {
       font-size: 16px;
       font-weight: normal;
     }
@@ -77,7 +88,7 @@
       padding: 10px 16px;
       border: none;
       border-radius: 8px;
-      background: #dc2626;
+      background: #374151;
       color: white;
       cursor: pointer;
     }
@@ -161,10 +172,13 @@
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+      margin-bottom: 12px;
     }
 
     .friend-btn,
-    .message-btn {
+    .message-btn,
+    .like-btn,
+    .favorite-btn {
       padding: 10px 16px;
       border: none;
       border-radius: 8px;
@@ -178,6 +192,14 @@
 
     .message-btn {
       background: #7c3aed;
+    }
+
+    .like-btn {
+      background: #dc2626;
+    }
+
+    .favorite-btn {
+      background: #d97706;
     }
 
     .mini-action-btn {
@@ -203,16 +225,15 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <span>Find Partners</span>
     <div class="nav-links">
       <a href="index.html">Home</a>
-      <a href="partners.html">Find Partner</a>
-      <a href="create.html">Create Post</a>
-      <a href="myposts.html">My Posts</a>
-      <a href="requests.html">Requests</a>
+      <a href="language-exchange.html">Language Exchange</a>
       <a href="friends.html">Friends</a>
       <a href="chat-list.html">Chats</a>
       <a href="profile.html">Profile</a>
+      <span id="userInfo"></span>
+      <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
@@ -232,7 +253,7 @@
 
   <script type="module">
     import { auth, db } from "./firebase.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import {
       ref,
       onValue,
@@ -242,24 +263,49 @@
       get
     } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
+    const userInfo = document.getElementById("userInfo");
+    const authLink = document.getElementById("authLink");
+
     let currentUser = null;
     let currentProfile = null;
     let allPosts = [];
     let allComments = {};
+    let allLikes = {};
+    let myFavorites = {};
 
     onAuthStateChanged(auth, async (user) => {
       currentUser = user || null;
 
-      if (currentUser) {
+      if (user) {
         try {
           const userSnapshot = await get(ref(db, "users/" + currentUser.uid));
           currentProfile = userSnapshot.exists() ? userSnapshot.val() : null;
+          userInfo.innerText = "👤 " + (currentProfile?.name || user.email);
         } catch (error) {
           console.error("Failed to load current user profile:", error);
           currentProfile = null;
+          userInfo.innerText = "👤 " + user.email;
         }
+
+        onValue(ref(db, `postFavorites/${currentUser.uid}`), (snapshot) => {
+          myFavorites = snapshot.val() || {};
+          renderPosts();
+        });
+
+        authLink.innerText = "Logout";
+        authLink.href = "#";
+        authLink.onclick = async (e) => {
+          e.preventDefault();
+          await signOut(auth);
+          window.location.href = "login.html";
+        };
       } else {
         currentProfile = null;
+        myFavorites = {};
+        userInfo.innerText = "";
+        authLink.innerText = "Login";
+        authLink.href = "login.html";
+        authLink.onclick = null;
       }
 
       renderPosts();
@@ -285,6 +331,43 @@
       renderPosts();
     });
 
+    onValue(ref(db, "postLikes"), (snapshot) => {
+      allLikes = snapshot.val() || {};
+      renderPosts();
+    });
+
+    async function toggleLike(postId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const likeRef = ref(db, `postLikes/${postId}/${currentUser.uid}`);
+      const snapshot = await get(likeRef);
+
+      if (snapshot.exists()) {
+        await remove(likeRef);
+      } else {
+        await set(likeRef, true);
+      }
+    }
+
+    async function toggleFavorite(postId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const favRef = ref(db, `postFavorites/${currentUser.uid}/${postId}`);
+      const snapshot = await get(favRef);
+
+      if (snapshot.exists()) {
+        await remove(favRef);
+      } else {
+        await set(favRef, true);
+      }
+    }
+
     async function deletePost(postId, postUid) {
       if (!currentUser) {
         alert("Please login first.");
@@ -299,6 +382,8 @@
       try {
         await remove(ref(db, "posts/" + postId));
         await remove(ref(db, "comments/" + postId));
+        await remove(ref(db, `postLikes/${postId}`));
+        await remove(ref(db, `postFavorites/${currentUser.uid}/${postId}`));
         alert("Post deleted successfully.");
       } catch (error) {
         console.error(error);
@@ -515,7 +600,6 @@
           : "https://via.placeholder.com/40";
 
         const canDeleteComment = currentUser && currentUser.uid === comment.uid;
-
         const safeName = escapeHtml(comment.name || "Anonymous");
         const rawAvatar = comment.avatar || "";
 
@@ -542,14 +626,16 @@
                     currentUser && currentUser.uid !== comment.uid
                       ? `
                         <button
-                          class="mini-action-btn mini-friend-btn"
+                          class="mini-action-btn"
+                          style="background:#16a34a;"
                           onclick="handleCommentFriendRequest('${comment.uid}', '${safeName}', '${rawAvatar}')"
                         >
                           Add Friend
                         </button>
 
                         <button
-                          class="mini-action-btn mini-message-btn"
+                          class="mini-action-btn"
+                          style="background:#7c3aed;"
                           onclick="handleCommentMessage('${comment.uid}')"
                         >
                           Message
@@ -562,7 +648,8 @@
                     canDeleteComment
                       ? `
                         <button
-                          class="mini-action-btn mini-delete-btn"
+                          class="mini-action-btn"
+                          style="background:#dc2626;"
                           onclick="handleDeleteComment('${postId}', '${comment.id}')"
                         >
                           Delete
@@ -606,6 +693,9 @@
           : "https://via.placeholder.com/60";
 
         const canDelete = currentUser && currentUser.uid === post.uid;
+        const likeCount = allLikes[post.id] ? Object.keys(allLikes[post.id]).length : 0;
+        const liked = currentUser && allLikes[post.id] && allLikes[post.id][currentUser.uid];
+        const favorited = currentUser && myFavorites[post.id];
 
         card.innerHTML = `
           <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
@@ -615,16 +705,18 @@
           <p><strong>Introduction:</strong> ${escapeHtml(post.content || "")}</p>
           <p><strong>Contact:</strong> ${escapeHtml(post.contact || "Not provided")}</p>
 
-          ${
-            canDelete
-              ? `<button class="delete-btn" onclick="handleDeletePost('${post.id}', '${post.uid}')">Delete</button>`
-              : ""
-          }
+          <div class="action-row">
+            <button class="like-btn" onclick="handleToggleLike('${post.id}')">
+              ${liked ? "Unlike" : "Like"} (${likeCount})
+            </button>
 
-          ${
-            currentUser && currentUser.uid !== post.uid
-              ? `
-                <div class="action-row">
+            <button class="favorite-btn" onclick="handleToggleFavorite('${post.id}')">
+              ${favorited ? "Unfavorite" : "Favorite"}
+            </button>
+
+            ${
+              currentUser && currentUser.uid !== post.uid
+                ? `
                   <button
                     class="friend-btn"
                     data-uid="${post.uid}"
@@ -638,10 +730,16 @@
                     data-uid="${post.uid}">
                     Message
                   </button>
-                </div>
-              `
-              : ""
-          }
+                `
+                : ""
+            }
+
+            ${
+              canDelete
+                ? `<button class="delete-btn" onclick="handleDeletePost('${post.id}', '${post.uid}')">Delete</button>`
+                : ""
+            }
+          </div>
 
           <div class="comments-section">
             <h4>Comments</h4>
@@ -693,6 +791,8 @@
     window.handleCommentFriendRequest = sendFriendRequest;
     window.handleCommentMessage = openPrivateChat;
     window.handleDeletePost = deletePost;
+    window.handleToggleLike = toggleLike;
+    window.handleToggleFavorite = toggleFavorite;
   </script>
 </body>
 </html>
