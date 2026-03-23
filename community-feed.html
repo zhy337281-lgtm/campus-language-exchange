@@ -83,6 +83,14 @@
       background: #dbeafe;
     }
 
+    .small-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+    }
+
     .post-name {
       font-weight: bold;
       color: #1d4ed8;
@@ -118,7 +126,9 @@
       margin-bottom: 14px;
     }
 
-    .action-row button {
+    .action-row button,
+    .mini-actions button,
+    .comment-btn {
       border: none;
       border-radius: 8px;
       padding: 8px 14px;
@@ -129,6 +139,8 @@
     .like-btn { background: #dc2626; }
     .favorite-btn { background: #d97706; }
     .delete-btn { background: #374151; }
+    .friend-btn { background: #16a34a; }
+    .message-btn { background: #7c3aed; }
 
     .comments-section {
       margin-top: 12px;
@@ -155,6 +167,13 @@
       white-space: pre-wrap;
     }
 
+    .mini-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
     .comment-input-row {
       display: flex;
       gap: 10px;
@@ -168,15 +187,12 @@
       border-radius: 8px;
       font-size: 14px;
       box-sizing: border-box;
+      color: #111827;
+      background: white;
     }
 
     .comment-btn {
-      padding: 10px 16px;
-      border: none;
-      border-radius: 8px;
       background: #2563eb;
-      color: white;
-      cursor: pointer;
     }
 
     .empty {
@@ -221,6 +237,7 @@
     let allPosts = [];
     let allComments = {};
     let allLikes = {};
+    let allCommentLikes = {};
     let myFavorites = {};
 
     createBtn.addEventListener("click", () => {
@@ -286,6 +303,11 @@
       renderFeed();
     });
 
+    onValue(ref(db, "communityCommentLikes"), (snapshot) => {
+      allCommentLikes = snapshot.val() || {};
+      renderFeed();
+    });
+
     function formatTime(timestamp) {
       if (!timestamp) return "";
       return new Date(timestamp).toLocaleString();
@@ -332,6 +354,22 @@
       }
     }
 
+    async function toggleCommunityCommentLike(postId, commentId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const likeRef = ref(db, `communityCommentLikes/${postId}/${commentId}/${currentUser.uid}`);
+      const snapshot = await get(likeRef);
+
+      if (snapshot.exists()) {
+        await remove(likeRef);
+      } else {
+        await set(likeRef, true);
+      }
+    }
+
     async function deleteCommunityPost(postId, postUid) {
       if (!currentUser) {
         alert("Please login first.");
@@ -346,7 +384,33 @@
       await remove(ref(db, `communityPosts/${postId}`));
       await remove(ref(db, `communityComments/${postId}`));
       await remove(ref(db, `communityLikes/${postId}`));
+      await remove(ref(db, `communityCommentLikes/${postId}`));
       await remove(ref(db, `communityFavorites/${currentUser.uid}/${postId}`));
+    }
+
+    async function deleteCommunityComment(postId, commentId) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const commentRef = ref(db, `communityComments/${postId}/${commentId}`);
+      const snapshot = await get(commentRef);
+
+      if (!snapshot.exists()) {
+        alert("Comment not found.");
+        return;
+      }
+
+      const data = snapshot.val();
+
+      if (data.uid !== currentUser.uid) {
+        alert("You can only delete your own comment.");
+        return;
+      }
+
+      await remove(commentRef);
+      await remove(ref(db, `communityCommentLikes/${postId}/${commentId}`));
     }
 
     async function submitCommunityComment(postId) {
@@ -378,6 +442,115 @@
       input.value = "";
     }
 
+    async function sendFriendRequest(targetUid, targetName, targetAvatar) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      if (currentUser.uid === targetUid) {
+        alert("You cannot add yourself.");
+        return;
+      }
+
+      try {
+        const friendsSnapshot = await get(ref(db, `friends/${currentUser.uid}`));
+        const myFriends = friendsSnapshot.val() || {};
+
+        if (myFriends[targetUid]) {
+          alert("You are already friends.");
+          return;
+        }
+
+        const requestsSnapshot = await get(ref(db, "friendRequests"));
+        const existing = requestsSnapshot.val() || {};
+
+        const duplicate = Object.values(existing).some(req =>
+          (
+            req.fromUid === currentUser.uid &&
+            req.toUid === targetUid &&
+            req.status === "pending"
+          ) ||
+          (
+            req.fromUid === targetUid &&
+            req.toUid === currentUser.uid &&
+            req.status === "pending"
+          )
+        );
+
+        if (duplicate) {
+          alert("A friend request already exists.");
+          return;
+        }
+
+        const newRequestRef = push(ref(db, "friendRequests"));
+
+        await set(newRequestRef, {
+          fromUid: currentUser.uid,
+          fromName: currentProfile?.name || currentUser.email,
+          fromAvatar: currentProfile?.avatar || "",
+          toUid: targetUid,
+          toName: targetName || "",
+          toAvatar: targetAvatar || "",
+          status: "pending",
+          createdAt: Date.now()
+        });
+
+        alert("Friend request sent.");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to send friend request: " + error.message);
+      }
+    }
+
+    async function openPrivateChat(targetUid) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      try {
+        const chatsSnapshot = await get(ref(db, "chats"));
+        const chats = chatsSnapshot.val() || {};
+
+        let foundChatId = null;
+
+        for (const [chatId, chat] of Object.entries(chats)) {
+          if (
+            chat.type === "private" &&
+            chat.memberIds &&
+            chat.memberIds[currentUser.uid] &&
+            chat.memberIds[targetUid]
+          ) {
+            foundChatId = chatId;
+            break;
+          }
+        }
+
+        if (!foundChatId) {
+          const newChatRef = push(ref(db, "chats"));
+          foundChatId = newChatRef.key;
+
+          await set(newChatRef, {
+            type: "private",
+            memberIds: {
+              [currentUser.uid]: true,
+              [targetUid]: true
+            },
+            memberList: [currentUser.uid, targetUid],
+            createdAt: Date.now(),
+            lastMessage: "",
+            lastMessageAt: Date.now()
+          });
+        }
+
+        window.location.href = `chat.html?chatId=${foundChatId}`;
+      } catch (error) {
+        console.error(error);
+        alert("Failed to open chat: " + error.message);
+      }
+    }
+
     function renderComments(postId) {
       const commentGroup = allComments[postId];
       if (!commentGroup) {
@@ -397,13 +570,74 @@
           ? comment.avatar
           : "https://via.placeholder.com/36";
 
+        const commentLikeCount =
+          allCommentLikes[postId] &&
+          allCommentLikes[postId][comment.id]
+            ? Object.keys(allCommentLikes[postId][comment.id]).length
+            : 0;
+
+        const commentLiked =
+          currentUser &&
+          allCommentLikes[postId] &&
+          allCommentLikes[postId][comment.id] &&
+          allCommentLikes[postId][comment.id][currentUser.uid];
+
+        const canDeleteComment = currentUser && currentUser.uid === comment.uid;
+
         return `
           <div class="comment-item">
             <div style="display:flex; gap:10px; align-items:flex-start;">
-              <img src="${avatar}" class="avatar" style="width:36px; height:36px;" alt="avatar">
+              <img src="${avatar}" class="small-avatar" alt="avatar">
               <div style="flex:1;">
-                <div class="comment-meta">${escapeHtml(comment.name || "Anonymous")} · ${formatTime(comment.createdAt)}</div>
-                <div class="comment-text">${escapeHtml(comment.text || "")}</div>
+                <div class="comment-meta">
+                  ${escapeHtml(comment.name || "Anonymous")} · ${formatTime(comment.createdAt)}
+                </div>
+
+                <div class="comment-text">
+                  ${escapeHtml(comment.text || "")}
+                </div>
+
+                <div class="mini-actions">
+                  <button
+                    style="background:#dc2626;"
+                    onclick="handleToggleCommunityCommentLike('${postId}', '${comment.id}')"
+                  >
+                    ${commentLiked ? "Unlike" : "Like"} (${commentLikeCount})
+                  </button>
+
+                  ${
+                    currentUser && currentUser.uid !== comment.uid
+                      ? `
+                        <button
+                          style="background:#16a34a;"
+                          onclick="handleCommentFriendRequest('${comment.uid}', '${escapeHtml(comment.name || "")}', '${comment.avatar || ""}')"
+                        >
+                          Add Friend
+                        </button>
+
+                        <button
+                          style="background:#7c3aed;"
+                          onclick="handleCommentMessage('${comment.uid}')"
+                        >
+                          Message
+                        </button>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    canDeleteComment
+                      ? `
+                        <button
+                          style="background:#374151;"
+                          onclick="handleDeleteCommunityComment('${postId}', '${comment.id}')"
+                        >
+                          Delete
+                        </button>
+                      `
+                      : ""
+                  }
+                </div>
               </div>
             </div>
           </div>
@@ -455,6 +689,26 @@
             </button>
 
             ${
+              currentUser && currentUser.uid !== post.uid
+                ? `
+                  <button
+                    class="friend-btn"
+                    onclick="handleCommunityFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')"
+                  >
+                    Add Friend
+                  </button>
+
+                  <button
+                    class="message-btn"
+                    onclick="handleCommunityMessage('${post.uid}')"
+                  >
+                    Message
+                  </button>
+                `
+                : ""
+            }
+
+            ${
               currentUser && currentUser.uid === post.uid
                 ? `<button class="delete-btn" onclick="handleDeleteCommunityPost('${post.id}', '${post.uid}')">Delete</button>`
                 : ""
@@ -480,6 +734,12 @@
     window.handleToggleCommunityFavorite = toggleFavorite;
     window.handleDeleteCommunityPost = deleteCommunityPost;
     window.handleSubmitCommunityComment = submitCommunityComment;
+    window.handleToggleCommunityCommentLike = toggleCommunityCommentLike;
+    window.handleDeleteCommunityComment = deleteCommunityComment;
+    window.handleCommunityFriendRequest = sendFriendRequest;
+    window.handleCommunityMessage = openPrivateChat;
+    window.handleCommentFriendRequest = sendFriendRequest;
+    window.handleCommentMessage = openPrivateChat;
   </script>
 </body>
 </html>

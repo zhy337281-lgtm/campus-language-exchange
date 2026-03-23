@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add Friend by Email</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    #userInfo {
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 30px auto;
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .search-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .search-row input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .search-row button {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+    }
+
+    .result-card {
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+    }
+
+    .add-btn {
+      border: none;
+      border-radius: 8px;
+      background: #16a34a;
+      color: white;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+
+    .empty {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Add Friend by Email</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
+      <a href="profile.html">Profile</a>
+      <span id="userInfo"></span>
+      <a href="login.html" id="authLink">Login</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h2>Search by Email</h2>
+
+    <div class="search-row">
+      <input type="email" id="emailInput" placeholder="Enter email address">
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <div id="resultContainer"></div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const userInfo = document.getElementById("userInfo");
+    const authLink = document.getElementById("authLink");
+    const emailInput = document.getElementById("emailInput");
+    const searchBtn = document.getElementById("searchBtn");
+    const resultContainer = document.getElementById("resultContainer");
+
+    let currentUser = null;
+    let currentProfile = null;
+    let usersData = {};
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user || null;
+
+      if (user) {
+        try {
+          const snapshot = await get(ref(db, "users/" + user.uid));
+          currentProfile = snapshot.exists() ? snapshot.val() : null;
+          userInfo.innerText = "👤 " + (currentProfile?.name || user.email);
+        } catch (error) {
+          console.error(error);
+          userInfo.innerText = "👤 " + user.email;
+        }
+
+        authLink.innerText = "Logout";
+        authLink.href = "#";
+        authLink.onclick = async (e) => {
+          e.preventDefault();
+          await signOut(auth);
+          window.location.href = "login.html";
+        };
+      } else {
+        userInfo.innerText = "";
+        authLink.innerText = "Login";
+        authLink.href = "login.html";
+        authLink.onclick = null;
+      }
+    });
+
+    async function loadUsers() {
+      const snapshot = await get(ref(db, "users"));
+      usersData = snapshot.val() || {};
+    }
+
+    async function sendFriendRequest(targetUid, targetName, targetAvatar) {
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      if (currentUser.uid === targetUid) {
+        alert("You cannot add yourself.");
+        return;
+      }
+
+      const newRequestRef = push(ref(db, "friendRequests"));
+
+      await set(newRequestRef, {
+        fromUid: currentUser.uid,
+        fromName: currentProfile?.name || currentUser.email,
+        fromAvatar: currentProfile?.avatar || "",
+        toUid: targetUid,
+        toName: targetName || "",
+        toAvatar: targetAvatar || "",
+        status: "pending",
+        createdAt: Date.now()
+      });
+
+      alert("Friend request sent.");
+    }
+
+    async function searchByEmail() {
+      const email = emailInput.value.trim().toLowerCase();
+
+      if (!email) {
+        alert("Please enter an email address.");
+        return;
+      }
+
+      await loadUsers();
+
+      resultContainer.innerHTML = "";
+
+      const matchedUsers = Object.entries(usersData)
+        .filter(([uid, user]) =>
+          (user.email || "").toLowerCase() === email
+        )
+        .map(([uid, user]) => ({ uid, ...user }));
+
+      if (matchedUsers.length === 0) {
+        resultContainer.innerHTML = `<p class="empty">No user found with that email.</p>`;
+        return;
+      }
+
+      matchedUsers.forEach(user => {
+        const avatar = user.avatar && user.avatar.trim() !== ""
+          ? user.avatar
+          : "https://via.placeholder.com/52";
+
+        const div = document.createElement("div");
+        div.className = "result-card";
+
+        div.innerHTML = `
+          <div class="left">
+            <img src="${avatar}" class="avatar" alt="avatar">
+            <div>
+              <div><strong>${user.name || "Unknown User"}</strong></div>
+              <div>${user.email || ""}</div>
+            </div>
+          </div>
+
+          <button class="add-btn" onclick="handleSendFriendRequest('${user.uid}', '${user.name || ""}', '${user.avatar || ""}')">Add Friend</button>
+        `;
+
+        resultContainer.appendChild(div);
+      });
+    }
+
+    searchBtn.addEventListener("click", searchByEmail);
+
+    window.handleSendFriendRequest = sendFriendRequest;
+  </script>
+</body>
+</html>

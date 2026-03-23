@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Community Favorites</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
+
+    .navbar {
+      background: #1d4ed8;
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    #userInfo {
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+
+    .post-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #dbeafe;
+    }
+
+    .post-name {
+      font-weight: bold;
+      color: #1d4ed8;
+    }
+
+    .post-time {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .post-text {
+      color: #111827;
+      line-height: 1.7;
+      margin-bottom: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .post-image {
+      width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #f9fafb;
+      margin-bottom: 14px;
+    }
+
+    .empty {
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>Community Favorites</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="community.html">Community</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
+      <a href="profile.html">Profile</a>
+      <span id="userInfo"></span>
+      <a href="login.html" id="authLink">Login</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="favoritesContainer"></div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, onValue, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const userInfo = document.getElementById("userInfo");
+    const authLink = document.getElementById("authLink");
+    const favoritesContainer = document.getElementById("favoritesContainer");
+
+    let currentUser = null;
+    let currentProfile = null;
+    let allPosts = {};
+    let myFavorites = {};
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user || null;
+
+      if (user) {
+        try {
+          const snapshot = await get(ref(db, "users/" + user.uid));
+          currentProfile = snapshot.exists() ? snapshot.val() : null;
+          userInfo.innerText = "👤 " + (currentProfile?.name || user.email);
+        } catch (error) {
+          console.error(error);
+          userInfo.innerText = "👤 " + user.email;
+        }
+
+        onValue(ref(db, `communityFavorites/${user.uid}`), (snapshot) => {
+          myFavorites = snapshot.val() || {};
+          renderFavorites();
+        });
+
+        authLink.innerText = "Logout";
+        authLink.href = "#";
+        authLink.onclick = async (e) => {
+          e.preventDefault();
+          await signOut(auth);
+          window.location.href = "login.html";
+        };
+      } else {
+        userInfo.innerText = "";
+        authLink.innerText = "Login";
+        authLink.href = "login.html";
+        authLink.onclick = null;
+      }
+    });
+
+    onValue(ref(db, "communityPosts"), (snapshot) => {
+      allPosts = snapshot.val() || {};
+      renderFavorites();
+    });
+
+    function formatTime(timestamp) {
+      if (!timestamp) return "";
+      return new Date(timestamp).toLocaleString();
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderFavorites() {
+      if (!favoritesContainer) return;
+      if (!currentUser) {
+        favoritesContainer.innerHTML = `<p class="empty">Please login first.</p>`;
+        return;
+      }
+
+      const favoritePostIds = Object.keys(myFavorites || {});
+      if (favoritePostIds.length === 0) {
+        favoritesContainer.innerHTML = `<p class="empty">No favorite community posts yet.</p>`;
+        return;
+      }
+
+      favoritesContainer.innerHTML = "";
+
+      favoritePostIds.forEach(postId => {
+        const post = allPosts[postId];
+        if (!post) return;
+
+        const avatar = post.avatar && post.avatar.trim() !== ""
+          ? post.avatar
+          : "https://via.placeholder.com/52";
+
+        const div = document.createElement("div");
+        div.className = "post-card";
+
+        div.innerHTML = `
+          <div class="post-header">
+            <img src="${avatar}" class="avatar" alt="avatar">
+            <div>
+              <div class="post-name">${escapeHtml(post.name || "Unknown User")}</div>
+              <div class="post-time">${formatTime(post.createdAt)}</div>
+            </div>
+          </div>
+
+          <div class="post-text">${escapeHtml(post.text || "")}</div>
+          ${post.image ? `<img src="${post.image}" class="post-image" alt="post image">` : ""}
+        `;
+
+        favoritesContainer.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
