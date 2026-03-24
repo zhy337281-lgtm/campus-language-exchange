@@ -118,7 +118,7 @@
   </div>
 
   <div class="container">
-    <div id="favoritesContainer"></div>
+    <div id="favoritesContainer" class="empty">Loading favorites...</div>
   </div>
 
   <script type="module">
@@ -161,10 +161,13 @@
           window.location.href = "login.html";
         };
       } else {
+        currentProfile = null;
+        myFavorites = {};
         userInfo.innerText = "";
         authLink.innerText = "Login";
         authLink.href = "login.html";
         authLink.onclick = null;
+        renderFavorites();
       }
     });
 
@@ -189,12 +192,14 @@
 
     function renderFavorites() {
       if (!favoritesContainer) return;
+
       if (!currentUser) {
         favoritesContainer.innerHTML = `<p class="empty">Please login first.</p>`;
         return;
       }
 
       const favoritePostIds = Object.keys(myFavorites || {});
+
       if (favoritePostIds.length === 0) {
         favoritesContainer.innerHTML = `<p class="empty">No favorite community posts yet.</p>`;
         return;
@@ -215,7 +220,7 @@
 
         div.innerHTML = `
           <div class="post-header">
-            <img src="${avatar}" class="avatar" alt="avatar">
+            <img src="${avatar}" class="avatar" alt="avatar" loading="lazy">
             <div>
               <div class="post-name">${escapeHtml(post.name || "Unknown User")}</div>
               <div class="post-time">${formatTime(post.createdAt)}</div>
@@ -223,7 +228,11 @@
           </div>
 
           <div class="post-text">${escapeHtml(post.text || "")}</div>
-          ${post.image ? `<img src="${post.image}" class="post-image" alt="post image">` : ""}
+          ${
+            post.image
+              ? `<img src="${post.image}" class="post-image" alt="post image" loading="lazy">`
+              : ""
+          }
         `;
 
         favoritesContainer.appendChild(div);

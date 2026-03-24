@@ -128,7 +128,8 @@
 
     .action-row button,
     .mini-actions button,
-    .comment-btn {
+    .comment-btn,
+    .toggle-comments-btn {
       border: none;
       border-radius: 8px;
       padding: 8px 14px;
@@ -141,6 +142,7 @@
     .delete-btn { background: #374151; }
     .friend-btn { background: #16a34a; }
     .message-btn { background: #7c3aed; }
+    .toggle-comments-btn { background: #2563eb; }
 
     .comments-section {
       margin-top: 12px;
@@ -219,7 +221,7 @@
       <button id="createBtn">Create Community Post</button>
     </div>
 
-    <div id="feedContainer"></div>
+    <div id="feedContainer" class="empty">Loading community posts...</div>
   </div>
 
   <script type="module">
@@ -239,6 +241,7 @@
     let allLikes = {};
     let allCommentLikes = {};
     let myFavorites = {};
+    let expandedComments = {};
 
     createBtn.addEventListener("click", () => {
       window.location.href = "community-create.html";
@@ -551,6 +554,11 @@
       }
     }
 
+    function toggleComments(postId) {
+      expandedComments[postId] = !expandedComments[postId];
+      renderFeed();
+    }
+
     function renderComments(postId) {
       const commentGroup = allComments[postId];
       if (!commentGroup) {
@@ -598,27 +606,18 @@
                 </div>
 
                 <div class="mini-actions">
-                  <button
-                    style="background:#dc2626;"
-                    onclick="handleToggleCommunityCommentLike('${postId}', '${comment.id}')"
-                  >
+                  <button style="background:#dc2626;" onclick="handleToggleCommunityCommentLike('${postId}', '${comment.id}')">
                     ${commentLiked ? "Unlike" : "Like"} (${commentLikeCount})
                   </button>
 
                   ${
                     currentUser && currentUser.uid !== comment.uid
                       ? `
-                        <button
-                          style="background:#16a34a;"
-                          onclick="handleCommentFriendRequest('${comment.uid}', '${escapeHtml(comment.name || "")}', '${comment.avatar || ""}')"
-                        >
+                        <button style="background:#16a34a;" onclick="handleCommentFriendRequest('${comment.uid}', '${escapeHtml(comment.name || "")}', '${comment.avatar || ""}')">
                           Add Friend
                         </button>
 
-                        <button
-                          style="background:#7c3aed;"
-                          onclick="handleCommentMessage('${comment.uid}')"
-                        >
+                        <button style="background:#7c3aed;" onclick="handleCommentMessage('${comment.uid}')">
                           Message
                         </button>
                       `
@@ -628,10 +627,7 @@
                   ${
                     canDeleteComment
                       ? `
-                        <button
-                          style="background:#374151;"
-                          onclick="handleDeleteCommunityComment('${postId}', '${comment.id}')"
-                        >
+                        <button style="background:#374151;" onclick="handleDeleteCommunityComment('${postId}', '${comment.id}')">
                           Delete
                         </button>
                       `
@@ -666,6 +662,8 @@
         const likeCount = allLikes[post.id] ? Object.keys(allLikes[post.id]).length : 0;
         const liked = currentUser && allLikes[post.id] && allLikes[post.id][currentUser.uid];
         const favorited = currentUser && myFavorites[post.id];
+        const commentCount = allComments[post.id] ? Object.keys(allComments[post.id]).length : 0;
+        const commentsVisible = !!expandedComments[post.id];
 
         div.innerHTML = `
           <div class="post-header">
@@ -677,7 +675,7 @@
           </div>
 
           <div class="post-text">${escapeHtml(post.text || "")}</div>
-          ${post.image ? `<img src="${post.image}" class="post-image" alt="post image">` : ""}
+          ${post.image ? `<img src="${post.image}" class="post-image" alt="post image" loading="lazy">` : ""}
 
           <div class="action-row">
             <button class="like-btn" onclick="handleToggleCommunityLike('${post.id}')">
@@ -688,20 +686,18 @@
               ${favorited ? "Unfavorite" : "Favorite"}
             </button>
 
+            <button class="toggle-comments-btn" onclick="handleToggleComments('${post.id}')">
+              ${commentsVisible ? "Hide Comments" : "Show Comments"} (${commentCount})
+            </button>
+
             ${
               currentUser && currentUser.uid !== post.uid
                 ? `
-                  <button
-                    class="friend-btn"
-                    onclick="handleCommunityFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')"
-                  >
+                  <button class="friend-btn" onclick="handleCommunityFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')">
                     Add Friend
                   </button>
 
-                  <button
-                    class="message-btn"
-                    onclick="handleCommunityMessage('${post.uid}')"
-                  >
+                  <button class="message-btn" onclick="handleCommunityMessage('${post.uid}')">
                     Message
                   </button>
                 `
@@ -715,15 +711,21 @@
             }
           </div>
 
-          <div class="comments-section">
-            <h4>Comments</h4>
-            ${renderComments(post.id)}
+          ${
+            commentsVisible
+              ? `
+                <div class="comments-section">
+                  <h4>Comments</h4>
+                  ${renderComments(post.id)}
 
-            <div class="comment-input-row">
-              <input type="text" id="community-comment-input-${post.id}" placeholder="Write a comment...">
-              <button class="comment-btn" onclick="handleSubmitCommunityComment('${post.id}')">Comment</button>
-            </div>
-          </div>
+                  <div class="comment-input-row">
+                    <input type="text" id="community-comment-input-${post.id}" placeholder="Write a comment...">
+                    <button class="comment-btn" onclick="handleSubmitCommunityComment('${post.id}')">Comment</button>
+                  </div>
+                </div>
+              `
+              : ""
+          }
         `;
 
         feedContainer.appendChild(div);
@@ -740,6 +742,7 @@
     window.handleCommunityMessage = openPrivateChat;
     window.handleCommentFriendRequest = sendFriendRequest;
     window.handleCommentMessage = openPrivateChat;
+    window.handleToggleComments = toggleComments;
   </script>
 </body>
 </html>
