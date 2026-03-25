@@ -241,6 +241,7 @@
     let allLikes = {};
     let allCommentLikes = {};
     let myFavorites = {};
+    let myFriends = {};
     let expandedComments = {};
 
     createBtn.addEventListener("click", () => {
@@ -264,6 +265,10 @@
           myFavorites = snapshot.val() || {};
           renderFeed();
         });
+        onValue(ref(db, `friends/${user.uid}`), (snapshot) => {
+          myFriends = snapshot.val() || {};
+          renderFeed();
+        });
 
         authLink.innerText = "Logout";
         authLink.href = "#";
@@ -275,6 +280,7 @@
       } else {
         currentProfile = null;
         myFavorites = {};
+        myFriends = {};
         userInfo.innerText = "";
         authLink.innerText = "Login";
         authLink.href = "login.html";
@@ -611,18 +617,28 @@
                   </button>
 
                   ${
-                    currentUser && currentUser.uid !== comment.uid
-                      ? `
-                        <button style="background:#16a34a;" onclick="handleCommentFriendRequest('${comment.uid}', '${escapeHtml(comment.name || "")}', '${comment.avatar || ""}')">
-                          Add Friend
-                        </button>
+  currentUser && currentUser.uid !== comment.uid
+    ? `
+      ${
+        myFriends && myFriends[comment.uid]
+          ? `
+            <button style="background:#9ca3af; cursor:default;" disabled>
+              Friends
+            </button>
+          `
+          : `
+            <button style="background:#16a34a;" onclick="handleCommentFriendRequest('${comment.uid}', '${escapeHtml(comment.name || "")}', '${comment.avatar || ""}')">
+              Add Friend
+            </button>
+          `
+      }
 
-                        <button style="background:#7c3aed;" onclick="handleCommentMessage('${comment.uid}')">
-                          Message
-                        </button>
-                      `
-                      : ""
-                  }
+      <button style="background:#7c3aed;" onclick="handleCommentMessage('${comment.uid}')">
+        Message
+      </button>
+    `
+    : ""
+}
 
                   ${
                     canDeleteComment
@@ -691,18 +707,28 @@
             </button>
 
             ${
-              currentUser && currentUser.uid !== post.uid
-                ? `
-                  <button class="friend-btn" onclick="handleCommunityFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')">
-                    Add Friend
-                  </button>
+  currentUser && currentUser.uid !== post.uid
+    ? `
+      ${
+        myFriends && myFriends[post.uid]
+          ? `
+            <button class="friend-btn" style="background:#9ca3af; cursor:default;" disabled>
+              Friends
+            </button>
+          `
+          : `
+            <button class="friend-btn" onclick="handleCommunityFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')">
+              Add Friend
+            </button>
+          `
+      }
 
-                  <button class="message-btn" onclick="handleCommunityMessage('${post.uid}')">
-                    Message
-                  </button>
-                `
-                : ""
-            }
+      <button class="message-btn" onclick="handleCommunityMessage('${post.uid}')">
+        Message
+      </button>
+    `
+    : ""
+}
 
             ${
               currentUser && currentUser.uid === post.uid
