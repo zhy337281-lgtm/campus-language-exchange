@@ -137,130 +137,186 @@
   </div>
 
   <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-    import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+  import { auth, db } from "./firebase.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+  import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-    const userInfo = document.getElementById("userInfo");
-    const authLink = document.getElementById("authLink");
-    const emailInput = document.getElementById("emailInput");
-    const searchBtn = document.getElementById("searchBtn");
-    const resultContainer = document.getElementById("resultContainer");
+  const userInfo = document.getElementById("userInfo");
+  const authLink = document.getElementById("authLink");
+  const emailInput = document.getElementById("emailInput");
+  const searchBtn = document.getElementById("searchBtn");
+  const resultContainer = document.getElementById("resultContainer");
 
-    let currentUser = null;
-    let currentProfile = null;
-    let usersData = {};
+  let currentUser = null;
+  let currentProfile = null;
+  let usersData = {};
+  let myFriends = {};
+  let allRequests = {};
 
-    onAuthStateChanged(auth, async (user) => {
-      currentUser = user || null;
+  onAuthStateChanged(auth, async (user) => {
+    currentUser = user || null;
 
-      if (user) {
-        try {
-          const snapshot = await get(ref(db, "users/" + user.uid));
-          currentProfile = snapshot.exists() ? snapshot.val() : null;
-          userInfo.innerText = "👤 " + (currentProfile?.name || user.email);
-        } catch (error) {
-          console.error(error);
-          userInfo.innerText = "👤 " + user.email;
-        }
+    if (user) {
+      try {
+        const snapshot = await get(ref(db, "users/" + user.uid));
+        currentProfile = snapshot.exists() ? snapshot.val() : null;
+        userInfo.innerText = "👤 " + (currentProfile?.name || user.email);
 
-        authLink.innerText = "Logout";
-        authLink.href = "#";
-        authLink.onclick = async (e) => {
-          e.preventDefault();
-          await signOut(auth);
-          window.location.href = "login.html";
-        };
-      } else {
-        userInfo.innerText = "";
-        authLink.innerText = "Login";
-        authLink.href = "login.html";
-        authLink.onclick = null;
+        const friendsSnapshot = await get(ref(db, `friends/${user.uid}`));
+        myFriends = friendsSnapshot.exists() ? friendsSnapshot.val() : {};
+
+        const requestsSnapshot = await get(ref(db, "friendRequests"));
+        allRequests = requestsSnapshot.exists() ? requestsSnapshot.val() : {};
+      } catch (error) {
+        console.error(error);
+        userInfo.innerText = "👤 " + user.email;
       }
+
+      authLink.innerText = "Logout";
+      authLink.href = "#";
+      authLink.onclick = async (e) => {
+        e.preventDefault();
+        await signOut(auth);
+        window.location.href = "login.html";
+      };
+    } else {
+      userInfo.innerText = "";
+      authLink.innerText = "Login";
+      authLink.href = "login.html";
+      authLink.onclick = null;
+    }
+  });
+
+  async function loadUsers() {
+    const snapshot = await get(ref(db, "users"));
+    usersData = snapshot.val() || {};
+  }
+
+  function hasPendingRequest(targetUid) {
+    return Object.values(allRequests).some(req =>
+      (
+        req.fromUid === currentUser.uid &&
+        req.toUid === targetUid &&
+        req.status === "pending"
+      ) ||
+      (
+        req.fromUid === targetUid &&
+        req.toUid === currentUser.uid &&
+        req.status === "pending"
+      )
+    );
+  }
+
+  async function sendFriendRequest(targetUid, targetName, targetAvatar) {
+    if (!currentUser) {
+      alert("Please login first.");
+      return;
+    }
+
+    if (currentUser.uid === targetUid) {
+      alert("You cannot add yourself.");
+      return;
+    }
+
+    if (myFriends[targetUid]) {
+      alert("You are already friends.");
+      return;
+    }
+
+    if (hasPendingRequest(targetUid)) {
+      alert("A friend request already exists.");
+      return;
+    }
+
+    const newRequestRef = push(ref(db, "friendRequests"));
+
+    await set(newRequestRef, {
+      fromUid: currentUser.uid,
+      fromName: currentProfile?.name || currentUser.email,
+      fromAvatar: currentProfile?.avatar || "",
+      toUid: targetUid,
+      toName: targetName || "",
+      toAvatar: targetAvatar || "",
+      status: "pending",
+      createdAt: Date.now()
     });
 
-    async function loadUsers() {
-      const snapshot = await get(ref(db, "users"));
-      usersData = snapshot.val() || {};
+    alert("Friend request sent.");
+
+    const requestsSnapshot = await get(ref(db, "friendRequests"));
+    allRequests = requestsSnapshot.exists() ? requestsSnapshot.val() : {};
+
+    searchByEmail();
+  }
+
+  async function searchByEmail() {
+    const email = emailInput.value.trim().toLowerCase();
+
+    if (!email) {
+      alert("Please enter an email address.");
+      return;
     }
 
-    async function sendFriendRequest(targetUid, targetName, targetAvatar) {
-      if (!currentUser) {
-        alert("Please login first.");
-        return;
-      }
+    await loadUsers();
 
-      if (currentUser.uid === targetUid) {
-        alert("You cannot add yourself.");
-        return;
-      }
+    resultContainer.innerHTML = "";
 
-      const newRequestRef = push(ref(db, "friendRequests"));
+    const matchedUsers = Object.entries(usersData)
+      .filter(([uid, user]) =>
+        (user.email || "").toLowerCase() === email
+      )
+      .map(([uid, user]) => ({ uid, ...user }));
 
-      await set(newRequestRef, {
-        fromUid: currentUser.uid,
-        fromName: currentProfile?.name || currentUser.email,
-        fromAvatar: currentProfile?.avatar || "",
-        toUid: targetUid,
-        toName: targetName || "",
-        toAvatar: targetAvatar || "",
-        status: "pending",
-        createdAt: Date.now()
-      });
-
-      alert("Friend request sent.");
+    if (matchedUsers.length === 0) {
+      resultContainer.innerHTML = `<p class="empty">No user found with that email.</p>`;
+      return;
     }
 
-    async function searchByEmail() {
-      const email = emailInput.value.trim().toLowerCase();
+    matchedUsers.forEach(user => {
+      const avatar = user.avatar && user.avatar.trim() !== ""
+        ? user.avatar
+        : "https://via.placeholder.com/52";
 
-      if (!email) {
-        alert("Please enter an email address.");
-        return;
+      let buttonHtml = "";
+
+      if (currentUser && currentUser.uid === user.uid) {
+        buttonHtml = `<button class="add-btn" style="background:#9ca3af;cursor:default;" disabled>Your Account</button>`;
+      } else if (myFriends[user.uid]) {
+        buttonHtml = `<button class="add-btn" style="background:#9ca3af;cursor:default;" disabled>Friends</button>`;
+      } else if (hasPendingRequest(user.uid)) {
+        buttonHtml = `<button class="add-btn" style="background:#9ca3af;cursor:default;" disabled>Request Sent</button>`;
+      } else {
+        buttonHtml = `<button class="add-btn" onclick="handleSendFriendRequest('${user.uid}', '${user.name || ""}', '${user.avatar || ""}')">Add Friend</button>`;
       }
 
-      await loadUsers();
+      const div = document.createElement("div");
+      div.className = "result-card";
 
-      resultContainer.innerHTML = "";
-
-      const matchedUsers = Object.entries(usersData)
-        .filter(([uid, user]) =>
-          (user.email || "").toLowerCase() === email
-        )
-        .map(([uid, user]) => ({ uid, ...user }));
-
-      if (matchedUsers.length === 0) {
-        resultContainer.innerHTML = `<p class="empty">No user found with that email.</p>`;
-        return;
-      }
-
-      matchedUsers.forEach(user => {
-        const avatar = user.avatar && user.avatar.trim() !== ""
-          ? user.avatar
-          : "https://via.placeholder.com/52";
-
-        const div = document.createElement("div");
-        div.className = "result-card";
-
-        div.innerHTML = `
-          <div class="left">
+      div.innerHTML = `
+        <div class="left">
+          <a href="user-profile.html?uid=${user.uid}">
             <img src="${avatar}" class="avatar" alt="avatar">
+          </a>
+          <div>
             <div>
-              <div><strong>${user.name || "Unknown User"}</strong></div>
-              <div>${user.email || ""}</div>
+              <a href="user-profile.html?uid=${user.uid}" style="color:#1d4ed8; text-decoration:none; font-weight:bold;">
+                ${user.name || "Unknown User"}
+              </a>
             </div>
+            <div>${user.email || ""}</div>
           </div>
+        </div>
 
-          <button class="add-btn" onclick="handleSendFriendRequest('${user.uid}', '${user.name || ""}', '${user.avatar || ""}')">Add Friend</button>
-        `;
+        ${buttonHtml}
+      `;
 
-        resultContainer.appendChild(div);
-      });
-    }
+      resultContainer.appendChild(div);
+    });
+  }
 
-    searchBtn.addEventListener("click", searchByEmail);
+  searchBtn.addEventListener("click", searchByEmail);
 
-    window.handleSendFriendRequest = sendFriendRequest;
-  </script>
+  window.handleSendFriendRequest = sendFriendRequest;
+</script>
 </body>
 </html>

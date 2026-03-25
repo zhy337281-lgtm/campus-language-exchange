@@ -94,19 +94,21 @@
     }
 
     .avatar-link {
-      display: inline-block;
-      text-decoration: none;
-    }
+  display: inline-block;
+  text-decoration: none;
+  cursor: pointer;
+}
 
-    .avatar-img {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      object-fit: cover;
-      background: #dbeafe;
-      display: block;
-      margin-bottom: 12px;
-    }
+.avatar-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #dbeafe;
+  display: block;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
 
     .comments-section {
       margin-top: 18px;
@@ -289,6 +291,7 @@
     let allComments = {};
     let allLikes = {};
     let myFavorites = {};
+    let myFriends = {};
 
     onAuthStateChanged(auth, async (user) => {
       currentUser = user || null;
@@ -308,6 +311,10 @@
           myFavorites = snapshot.val() || {};
           renderPosts();
         });
+        onValue(ref(db, `friends/${currentUser.uid}`), (snapshot) => {
+          myFriends = snapshot.val() || {};
+           renderPosts();
+        });
 
         authLink.innerText = "Logout";
         authLink.href = "#";
@@ -319,6 +326,7 @@
       } else {
         currentProfile = null;
         myFavorites = {};
+        myFriends = {};
         userInfo.innerText = "";
         authLink.innerText = "Login";
         authLink.href = "login.html";
@@ -595,94 +603,108 @@
     }
 
     function renderComments(postId) {
-      const commentGroup = allComments[postId];
-      if (!commentGroup) {
-        return `<div class="empty-comment">No comments yet.</div>`;
-      }
+  const commentGroup = allComments[postId];
+  if (!commentGroup) {
+    return `<div class="empty-comment">No comments yet.</div>`;
+  }
 
-      const commentsArray = Object.entries(commentGroup)
-        .map(([id, comment]) => ({
-          id,
-          ...comment
-        }))
-        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const commentsArray = Object.entries(commentGroup)
+    .map(([id, comment]) => ({
+      id,
+      ...comment
+    }))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
-      if (commentsArray.length === 0) {
-        return `<div class="empty-comment">No comments yet.</div>`;
-      }
+  if (commentsArray.length === 0) {
+    return `<div class="empty-comment">No comments yet.</div>`;
+  }
 
-      return commentsArray.map(comment => {
-        const commentAvatar = comment.avatar && comment.avatar.trim() !== ""
-          ? comment.avatar
-          : "https://via.placeholder.com/40";
+  return commentsArray.map(comment => {
+    const commentAvatar = comment.avatar && comment.avatar.trim() !== ""
+      ? comment.avatar
+      : "https://via.placeholder.com/40";
 
-        const canDeleteComment = currentUser && currentUser.uid === comment.uid;
-        const safeName = escapeHtml(comment.name || "Anonymous");
-        const rawAvatar = comment.avatar || "";
+    const canDeleteComment = currentUser && currentUser.uid === comment.uid;
+    const safeName = escapeHtml(comment.name || "Anonymous");
+    const rawAvatar = comment.avatar || "";
 
-        return `
-          <div class="comment-item">
-            <div style="display:flex; gap:10px; align-items:flex-start;">
-              <a href="user-profile.html?uid=${comment.uid}" class="avatar-link">
-                <img
-                  src="${commentAvatar}"
-                  alt="avatar"
-                  style="width:40px; height:40px; border-radius:50%; object-fit:cover; background:#dbeafe;"
-                >
+    return `
+      <div class="comment-item">
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <a href="user-profile.html?uid=${comment.uid}" class="avatar-link">
+            <img
+              src="${commentAvatar}"
+              alt="avatar"
+              style="width:40px; height:40px; border-radius:50%; object-fit:cover; background:#dbeafe; cursor:pointer;"
+            >
+          </a>
+
+          <div style="flex:1;">
+            <div class="comment-meta">
+              <a href="user-profile.html?uid=${comment.uid}" class="comment-user-link">
+                ${safeName}
               </a>
+              · ${formatTime(comment.createdAt)}
+            </div>
 
-              <div style="flex:1;">
-                <div class="comment-meta">
-                  <a href="user-profile.html?uid=${comment.uid}" class="comment-user-link">
-                    ${safeName}
-                  </a>
-                  · ${formatTime(comment.createdAt)}
-                </div>
+            <div class="comment-text">
+              ${escapeHtml(comment.text || "")}
+            </div>
 
-                <div class="comment-text">
-                  ${escapeHtml(comment.text || "")}
-                </div>
+            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+              ${
+                currentUser && currentUser.uid !== comment.uid
+                  ? `
+                    ${
+                      myFriends && myFriends[comment.uid]
+                        ? `
+                          <button
+                            class="mini-action-btn"
+                            style="background:#9ca3af; cursor:default;"
+                            disabled
+                          >
+                            Friends
+                          </button>
+                        `
+                        : `
+                          <button
+                            class="mini-action-btn mini-friend-btn"
+                            onclick="handleCommentFriendRequest('${comment.uid}', '${safeName}', '${rawAvatar}')"
+                          >
+                            Add Friend
+                          </button>
+                        `
+                    }
 
-                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                  ${
-                    currentUser && currentUser.uid !== comment.uid
-                      ? `
-                        <button
-                          class="mini-action-btn mini-friend-btn"
-                          onclick="handleCommentFriendRequest('${comment.uid}', '${safeName}', '${rawAvatar}')"
-                        >
-                          Add Friend
-                        </button>
+                    <button
+                      class="mini-action-btn mini-message-btn"
+                      onclick="handleCommentMessage('${comment.uid}')"
+                    >
+                      Message
+                    </button>
+                  `
+                  : ""
+              }
 
-                        <button
-                          class="mini-action-btn mini-message-btn"
-                          onclick="handleCommentMessage('${comment.uid}')"
-                        >
-                          Message
-                        </button>
-                      `
-                      : ""
-                  }
-
-                  ${
-                    canDeleteComment
-                      ? `
-                        <button
-                          class="mini-action-btn mini-delete-btn"
-                          onclick="handleDeleteComment('${postId}', '${comment.id}')"
-                        >
-                          Delete
-                        </button>
-                      `
-                      : ""
-                  }
-                </div>
-              </div>
+              ${
+                canDeleteComment
+                  ? `
+                    <button
+                      class="mini-action-btn mini-delete-btn"
+                      onclick="handleDeleteComment('${postId}', '${comment.id}')"
+                    >
+                      Delete
+                    </button>
+                  `
+                  : ""
+              }
             </div>
           </div>
-        `;
-      }).join("");
-    }
+        </div>
+      </div>
+    `;
+  }).join("");
+}
 
     function renderPosts() {
       const container = document.getElementById("posts-container");
@@ -746,24 +768,38 @@
             </button>
 
             ${
-              currentUser && currentUser.uid !== post.uid
-                ? `
-                  <button
-                    class="friend-btn"
-                    data-uid="${post.uid}"
-                    data-name="${escapeHtml(post.name || "")}"
-                    data-avatar="${post.avatar || ""}">
-                    Add Friend
-                  </button>
+  currentUser && currentUser.uid !== post.uid
+    ? `
+      ${
+        myFriends && myFriends[post.uid]
+          ? `
+            <button
+              class="friend-btn"
+              style="background:#9ca3af; cursor:default;"
+              disabled
+            >
+              Friends
+            </button>
+          `
+          : `
+            <button
+              class="friend-btn"
+              data-uid="${post.uid}"
+              data-name="${escapeHtml(post.name || "")}"
+              data-avatar="${post.avatar || ""}">
+              Add Friend
+            </button>
+          `
+      }
 
-                  <button
-                    class="message-btn"
-                    data-uid="${post.uid}">
-                    Message
-                  </button>
-                `
-                : ""
-            }
+      <button
+        class="message-btn"
+        data-uid="${post.uid}">
+        Message
+      </button>
+    `
+    : ""
+}
 
             ${
               canDelete
