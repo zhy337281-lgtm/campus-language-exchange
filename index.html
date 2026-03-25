@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Lingyou-Campus Community</title>
+  <title>LinkCampus Community</title>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1d4ed8">
+<link rel="apple-touch-icon" href="icon-192.png">
   <style>
     * {
       box-sizing: border-box;
@@ -124,7 +127,7 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <span>LinkCampus Community</span>
 
     <div class="nav-links">
       <a href="index.html">Home</a>
@@ -137,7 +140,7 @@
   </div>
 
   <div class="hero">
-    <h1>Welcome to Campus Language Exchange</h1>
+    <h1>Welcome to LinkCampus Community</h1>
     <p>Connect with students, practice languages, and build your campus community.</p>
   </div>
 
@@ -209,5 +212,18 @@
       }
     });
   </script>
+  <script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js")
+        .then((registration) => {
+          console.log("Service Worker registered:", registration);
+        })
+        .catch((error) => {
+          console.log("Service Worker registration failed:", error);
+        });
+    });
+  }
+</script>
 </body>
 </html>
