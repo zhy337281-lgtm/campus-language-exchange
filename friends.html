@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Friends</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -27,7 +28,6 @@
       text-decoration: none;
       margin-left: 16px;
       font-size: 16px;
-      font-weight: normal;
     }
 
     .container {
@@ -37,6 +37,21 @@
       padding: 24px;
       border-radius: 12px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .top-actions {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .top-actions button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
     }
 
     .friend-card {
@@ -65,6 +80,7 @@
     .name {
       font-size: 18px;
       font-weight: bold;
+      color: #1d4ed8;
     }
 
     .meta {
@@ -87,6 +103,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="navbar">
     <span>Campus Language Exchange</span>
@@ -102,6 +119,14 @@
 
   <div class="container">
     <h2>My Friends</h2>
+
+    <!-- ⭐ 新增入口 -->
+    <div class="top-actions">
+      <button onclick="window.location.href='add-friend-by-email.html'">
+        ➕ Add Friend by Email
+      </button>
+    </div>
+
     <div id="friends-container"></div>
   </div>
 
@@ -127,102 +152,98 @@
     async function openPrivateChat(targetUid) {
       if (!currentUser) return;
 
-      try {
-        const chatsSnapshot = await get(ref(db, "chats"));
-        const chats = chatsSnapshot.val() || {};
+      const chatsSnapshot = await get(ref(db, "chats"));
+      const chats = chatsSnapshot.val() || {};
 
-        let foundChatId = null;
+      let foundChatId = null;
 
-        for (const [chatId, chat] of Object.entries(chats)) {
-          if (
-            chat.type === "private" &&
-            chat.memberIds &&
-            chat.memberIds[currentUser.uid] &&
-            chat.memberIds[targetUid]
-          ) {
-            foundChatId = chatId;
-            break;
-          }
+      for (const [chatId, chat] of Object.entries(chats)) {
+        if (
+          chat.type === "private" &&
+          chat.memberIds &&
+          chat.memberIds[currentUser.uid] &&
+          chat.memberIds[targetUid]
+        ) {
+          foundChatId = chatId;
+          break;
         }
-
-        if (!foundChatId) {
-          const newChatRef = push(ref(db, "chats"));
-          foundChatId = newChatRef.key;
-
-          await set(newChatRef, {
-            type: "private",
-            memberIds: {
-              [currentUser.uid]: true,
-              [targetUid]: true
-            },
-            memberList: [currentUser.uid, targetUid],
-            createdAt: Date.now(),
-            lastMessage: "",
-            lastMessageAt: Date.now()
-          });
-        }
-
-        window.location.href = `chat.html?chatId=${foundChatId}`;
-      } catch (error) {
-        console.error(error);
-        alert("Failed to open chat: " + error.message);
       }
+
+      if (!foundChatId) {
+        const newChatRef = push(ref(db, "chats"));
+        foundChatId = newChatRef.key;
+
+        await set(newChatRef, {
+          type: "private",
+          memberIds: {
+            [currentUser.uid]: true,
+            [targetUid]: true
+          },
+          memberList: [currentUser.uid, targetUid],
+          createdAt: Date.now(),
+          lastMessage: "",
+          lastMessageAt: Date.now()
+        });
+      }
+
+      window.location.href = `chat.html?chatId=${foundChatId}`;
     }
 
     async function loadFriends() {
-      try {
-        const friendsSnapshot = await get(ref(db, `friends/${currentUser.uid}`));
-        const usersSnapshot = await get(ref(db, "users"));
+      const friendsSnapshot = await get(ref(db, `friends/${currentUser.uid}`));
+      const usersSnapshot = await get(ref(db, "users"));
 
-        const friendsData = friendsSnapshot.val() || {};
-        const usersData = usersSnapshot.val() || {};
+      const friendsData = friendsSnapshot.val() || {};
+      const usersData = usersSnapshot.val() || {};
 
-        const friendUids = Object.keys(friendsData);
+      const friendUids = Object.keys(friendsData);
 
-        if (friendUids.length === 0) {
-          container.innerHTML = `<p class="empty">You have no friends yet.</p>`;
-          return;
-        }
-
-        container.innerHTML = "";
-
-        friendUids.forEach(uid => {
-          const userData = usersData[uid];
-          if (!userData) return;
-
-          const div = document.createElement("div");
-          div.className = "friend-card";
-
-          const avatar = userData.avatar && userData.avatar.trim() !== ""
-            ? userData.avatar
-            : "https://via.placeholder.com/56";
-
-          div.innerHTML = `
-            <div class="left">
-              <img class="avatar" src="${avatar}" alt="avatar">
-              <div>
-                <div class="name">${userData.name || "Unknown User"}</div>
-                <div class="meta">${userData.email || ""}</div>
-              </div>
-            </div>
-
-            <button class="message-btn" data-uid="${uid}">Message</button>
-          `;
-
-          container.appendChild(div);
-        });
-
-        document.querySelectorAll(".message-btn").forEach(btn => {
-          btn.addEventListener("click", async (e) => {
-            const targetUid = e.target.getAttribute("data-uid");
-            await openPrivateChat(targetUid);
-          });
-        });
-
-      } catch (error) {
-        console.error(error);
-        alert("Failed to load friends: " + error.message);
+      if (friendUids.length === 0) {
+        container.innerHTML = `<p class="empty">You have no friends yet.</p>`;
+        return;
       }
+
+      container.innerHTML = "";
+
+      friendUids.forEach(uid => {
+        const userData = usersData[uid];
+        if (!userData) return;
+
+        const avatar = userData.avatar || "https://via.placeholder.com/56";
+
+        const div = document.createElement("div");
+        div.className = "friend-card";
+
+        div.innerHTML = `
+          <div class="left">
+            <a href="user-profile.html?uid=${uid}">
+              <img class="avatar" src="${avatar}">
+            </a>
+
+            <div>
+              <div class="name">
+                <a href="user-profile.html?uid=${uid}" style="text-decoration:none;color:#1d4ed8;">
+                  ${userData.name || "Unknown User"}
+                </a>
+              </div>
+              <div class="meta">${userData.email || ""}</div>
+            </div>
+          </div>
+
+          <button class="message-btn" data-uid="${uid}">
+            Message
+          </button>
+        `;
+
+        container.appendChild(div);
+      });
+
+      document.querySelectorAll(".message-btn").forEach(btn => {
+        btn.addEventListener("click", async (e) => {
+          const targetUid = e.target.getAttribute("data-uid");
+          await openPrivateChat(targetUid);
+        });
+      });
     }
   </script>
 </body>

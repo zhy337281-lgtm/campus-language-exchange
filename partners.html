@@ -93,6 +93,11 @@
       cursor: pointer;
     }
 
+    .avatar-link {
+      display: inline-block;
+      text-decoration: none;
+    }
+
     .avatar-img {
       width: 60px;
       height: 60px;
@@ -220,6 +225,18 @@
 
     .mini-delete-btn {
       background: #dc2626;
+    }
+
+    .profile-name-link,
+    .comment-user-link {
+      color: #1d4ed8;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .profile-name-link:hover,
+    .comment-user-link:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -606,15 +623,20 @@
         return `
           <div class="comment-item">
             <div style="display:flex; gap:10px; align-items:flex-start;">
-              <img
-                src="${commentAvatar}"
-                alt="avatar"
-                style="width:40px; height:40px; border-radius:50%; object-fit:cover; background:#dbeafe;"
-              >
+              <a href="user-profile.html?uid=${comment.uid}" class="avatar-link">
+                <img
+                  src="${commentAvatar}"
+                  alt="avatar"
+                  style="width:40px; height:40px; border-radius:50%; object-fit:cover; background:#dbeafe;"
+                >
+              </a>
 
               <div style="flex:1;">
                 <div class="comment-meta">
-                  ${safeName} · ${formatTime(comment.createdAt)}
+                  <a href="user-profile.html?uid=${comment.uid}" class="comment-user-link">
+                    ${safeName}
+                  </a>
+                  · ${formatTime(comment.createdAt)}
                 </div>
 
                 <div class="comment-text">
@@ -626,16 +648,14 @@
                     currentUser && currentUser.uid !== comment.uid
                       ? `
                         <button
-                          class="mini-action-btn"
-                          style="background:#16a34a;"
+                          class="mini-action-btn mini-friend-btn"
                           onclick="handleCommentFriendRequest('${comment.uid}', '${safeName}', '${rawAvatar}')"
                         >
                           Add Friend
                         </button>
 
                         <button
-                          class="mini-action-btn"
-                          style="background:#7c3aed;"
+                          class="mini-action-btn mini-message-btn"
                           onclick="handleCommentMessage('${comment.uid}')"
                         >
                           Message
@@ -648,8 +668,7 @@
                     canDeleteComment
                       ? `
                         <button
-                          class="mini-action-btn"
-                          style="background:#dc2626;"
+                          class="mini-action-btn mini-delete-btn"
                           onclick="handleDeleteComment('${postId}', '${comment.id}')"
                         >
                           Delete
@@ -676,7 +695,9 @@
         (post.speak || "").toLowerCase().includes(keyword) ||
         (post.learn || "").toLowerCase().includes(keyword) ||
         (post.content || "").toLowerCase().includes(keyword) ||
-        (post.contact || "").toLowerCase().includes(keyword)
+        (post.contact || "").toLowerCase().includes(keyword) ||
+        (post.school || "").toLowerCase().includes(keyword) ||
+        (post.bio || "").toLowerCase().includes(keyword)
       );
 
       if (filteredPosts.length === 0) {
@@ -698,11 +719,21 @@
         const favorited = currentUser && myFavorites[post.id];
 
         card.innerHTML = `
-          <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
-          <h3>👤 ${escapeHtml(post.name || "Unknown User")}</h3>
+          <a href="user-profile.html?uid=${post.uid}" class="avatar-link">
+            <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
+          </a>
+
+          <h3>
+            <a href="user-profile.html?uid=${post.uid}" class="profile-name-link">
+              👤 ${escapeHtml(post.name || "Unknown User")}
+            </a>
+          </h3>
+
+          <p><strong>School:</strong> ${escapeHtml(post.school || "Not provided")}</p>
           <p><strong>Speaks:</strong> ${escapeHtml(post.speak || "Not provided")}</p>
           <p><strong>Learning:</strong> ${escapeHtml(post.learn || "Not provided")}</p>
           <p><strong>Introduction:</strong> ${escapeHtml(post.content || "")}</p>
+          <p><strong>Bio:</strong> ${escapeHtml(post.bio || "Not provided")}</p>
           <p><strong>Contact:</strong> ${escapeHtml(post.contact || "Not provided")}</p>
 
           <div class="action-row">

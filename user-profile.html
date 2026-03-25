@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Profile</title>
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background:#f3f4f6;
+      margin:0;
+    }
+
+    .navbar{
+      background:#1d4ed8;
+      color:white;
+      padding:16px 24px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      font-size:22px;
+      font-weight:bold;
+    }
+
+    .nav-links{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+
+    .nav-links a{
+      color:white;
+      text-decoration:none;
+      font-size:16px;
+      font-weight:normal;
+    }
+
+    .container{
+      max-width:700px;
+      margin:40px auto;
+      background:white;
+      padding:24px;
+      border-radius:12px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.08);
+    }
+
+    .avatar{
+      width:100px;
+      height:100px;
+      border-radius:50%;
+      object-fit:cover;
+      background:#dbeafe;
+      display:block;
+      margin-bottom:20px;
+    }
+
+    .info{
+      margin:10px 0;
+      font-size:16px;
+      color:#374151;
+      line-height:1.6;
+    }
+
+    .bio-box{
+      margin-top:8px;
+      padding:12px;
+      background:#f9fafb;
+      border-radius:10px;
+      color:#374151;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+
+    .button-row{
+      margin-top:16px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      padding:10px 16px;
+      border:none;
+      border-radius:8px;
+      color:white;
+      cursor:pointer;
+    }
+
+    .friend-btn{ background:#16a34a; }
+    .message-btn{ background:#7c3aed; }
+    .disabled-btn{
+      background:#9ca3af;
+      cursor:default;
+    }
+
+    .empty{
+      color:#6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <span>User Profile</span>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
+      <a href="profile.html">My Profile</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <img id="avatar" class="avatar" src="https://via.placeholder.com/100" alt="avatar">
+
+    <h2 id="name">Loading...</h2>
+
+    <div class="info"><strong>Email:</strong> <span id="email"></span></div>
+    <div class="info"><strong>School:</strong> <span id="school"></span></div>
+    <div class="info"><strong>Speaks:</strong> <span id="speak"></span></div>
+    <div class="info"><strong>Learning:</strong> <span id="learn"></span></div>
+    <div class="info"><strong>Contact:</strong> <span id="contact"></span></div>
+
+    <div class="info"><strong>Bio:</strong></div>
+    <div id="bio" class="bio-box">Not set</div>
+
+    <div class="button-row" id="actionRow"></div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const uid = params.get("uid");
+
+    let currentUser = null;
+    let currentProfile = null;
+    let viewedUser = null;
+    let alreadyFriends = false;
+    let pendingRequestExists = false;
+
+    async function loadViewedUser() {
+      if (!uid) {
+        document.getElementById("name").innerText = "User not found";
+        return;
+      }
+
+      const snapshot = await get(ref(db, "users/" + uid));
+      if (!snapshot.exists()) {
+        document.getElementById("name").innerText = "User not found";
+        return;
+      }
+
+      viewedUser = snapshot.val();
+
+      document.getElementById("name").innerText = viewedUser.name || "Unknown User";
+      document.getElementById("email").innerText = viewedUser.email || "Not set";
+      document.getElementById("school").innerText = viewedUser.school || "Not set";
+      document.getElementById("speak").innerText = viewedUser.speak || "Not set";
+      document.getElementById("learn").innerText = viewedUser.learn || "Not set";
+      document.getElementById("bio").innerText = viewedUser.bio || "Not set";
+      document.getElementById("contact").innerText = viewedUser.contact || "Not set";
+      document.getElementById("avatar").src =
+        viewedUser.avatar && viewedUser.avatar.trim() !== ""
+          ? viewedUser.avatar
+          : "https://via.placeholder.com/100";
+    }
+
+    async function checkRelationshipStatus() {
+      alreadyFriends = false;
+      pendingRequestExists = false;
+
+      if (!currentUser || !uid || currentUser.uid === uid) return;
+
+      const friendsSnapshot = await get(ref(db, `friends/${currentUser.uid}`));
+      const myFriends = friendsSnapshot.exists() ? friendsSnapshot.val() : {};
+
+      if (myFriends && myFriends[uid]) {
+        alreadyFriends = true;
+        return;
+      }
+
+      const requestsSnapshot = await get(ref(db, "friendRequests"));
+      const requests = requestsSnapshot.exists() ? requestsSnapshot.val() : {};
+
+      pendingRequestExists = Object.values(requests).some(req =>
+        (
+          req.fromUid === currentUser.uid &&
+          req.toUid === uid &&
+          req.status === "pending"
+        ) ||
+        (
+          req.fromUid === uid &&
+          req.toUid === currentUser.uid &&
+          req.status === "pending"
+        )
+      );
+    }
+
+    async function sendFriendRequest() {
+      if (!currentUser || !uid || currentUser.uid === uid) return;
+
+      await checkRelationshipStatus();
+
+      if (alreadyFriends) {
+        alert("You are already friends.");
+        return;
+      }
+
+      if (pendingRequestExists) {
+        alert("A friend request already exists.");
+        return;
+      }
+
+      const newRequestRef = push(ref(db, "friendRequests"));
+      await set(newRequestRef, {
+        fromUid: currentUser.uid,
+        fromName: currentProfile?.name || currentUser.email,
+        fromAvatar: currentProfile?.avatar || "",
+        toUid: uid,
+        toName: viewedUser?.name || "",
+        toAvatar: viewedUser?.avatar || "",
+        status: "pending",
+        createdAt: Date.now()
+      });
+
+      alert("Friend request sent.");
+      pendingRequestExists = true;
+      renderActions();
+    }
+
+    async function openPrivateChat() {
+      if (!currentUser || !uid || currentUser.uid === uid) return;
+
+      const chatsSnapshot = await get(ref(db, "chats"));
+      const chats = chatsSnapshot.val() || {};
+
+      let foundChatId = null;
+
+      for (const [chatId, chat] of Object.entries(chats)) {
+        if (
+          chat.type === "private" &&
+          chat.memberIds &&
+          chat.memberIds[currentUser.uid] &&
+          chat.memberIds[uid]
+        ) {
+          foundChatId = chatId;
+          break;
+        }
+      }
+
+      if (!foundChatId) {
+        const newChatRef = push(ref(db, "chats"));
+        foundChatId = newChatRef.key;
+
+        await set(newChatRef, {
+          type: "private",
+          memberIds: {
+            [currentUser.uid]: true,
+            [uid]: true
+          },
+          memberList: [currentUser.uid, uid],
+          createdAt: Date.now(),
+          lastMessage: "",
+          lastMessageAt: Date.now()
+        });
+      }
+
+      window.location.href = `chat.html?chatId=${foundChatId}`;
+    }
+
+    function renderActions() {
+      const actionRow = document.getElementById("actionRow");
+      actionRow.innerHTML = "";
+
+      if (!currentUser || !uid || currentUser.uid === uid) return;
+
+      let friendButtonHtml = "";
+
+      if (alreadyFriends) {
+        friendButtonHtml = `<button class="btn disabled-btn" disabled>Friends</button>`;
+      } else if (pendingRequestExists) {
+        friendButtonHtml = `<button class="btn disabled-btn" disabled>Request Sent</button>`;
+      } else {
+        friendButtonHtml = `<button class="btn friend-btn" id="addFriendBtn">Add Friend</button>`;
+      }
+
+      actionRow.innerHTML = `
+        ${friendButtonHtml}
+        <button class="btn message-btn" id="messageBtn">Message</button>
+      `;
+
+      const addFriendBtn = document.getElementById("addFriendBtn");
+      const messageBtn = document.getElementById("messageBtn");
+
+      if (addFriendBtn) {
+        addFriendBtn.addEventListener("click", sendFriendRequest);
+      }
+
+      if (messageBtn) {
+        messageBtn.addEventListener("click", openPrivateChat);
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user || null;
+
+      if (user) {
+        const snapshot = await get(ref(db, "users/" + user.uid));
+        currentProfile = snapshot.exists() ? snapshot.val() : null;
+      }
+
+      await loadViewedUser();
+      await checkRelationshipStatus();
+      renderActions();
+    });
+  </script>
+</body>
+</html>

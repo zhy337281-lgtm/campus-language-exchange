@@ -5,7 +5,7 @@
 
   <style>
     body{
-      font-family:Arial;
+      font-family:Arial, sans-serif;
       background:#f3f4f6;
       margin:0;
     }
@@ -19,13 +19,30 @@
       box-shadow:0 4px 10px rgba(0,0,0,0.08);
     }
 
-    input{
+    h2{
+      margin-bottom:20px;
+    }
+
+    label{
+      display:block;
+      margin-top:12px;
+      margin-bottom:6px;
+      font-weight:bold;
+    }
+
+    input, textarea{
       width:100%;
       padding:10px;
-      margin:8px 0 16px 0;
+      margin:0 0 16px 0;
       box-sizing:border-box;
       border:1px solid #d1d5db;
       border-radius:8px;
+      font-size:15px;
+    }
+
+    textarea{
+      min-height:100px;
+      resize:vertical;
     }
 
     button{
@@ -55,14 +72,20 @@
   <div class="container">
     <h2>Edit Profile</h2>
 
+    <label>School</label>
+    <input id="school" placeholder="Enter your school">
+
+    <label>Bio</label>
+    <textarea id="bio" placeholder="Write a short self introduction"></textarea>
+
     <label>Languages You Speak</label>
-    <input id="speak">
+    <input id="speak" placeholder="Chinese, English...">
 
     <label>Language You Learn</label>
-    <input id="learn">
+    <input id="learn" placeholder="Japanese...">
 
-    <label>Instagram</label>
-    <input id="contact">
+    <label>Instagram / Contact</label>
+    <input id="contact" placeholder="@instagram / LINE / etc.">
 
     <label>Avatar</label>
     <input type="file" id="avatar" accept="image/*">
@@ -81,6 +104,8 @@
     let currentUser = null;
     let currentProfile = {};
 
+    const schoolInput = document.getElementById("school");
+    const bioInput = document.getElementById("bio");
     const speakInput = document.getElementById("speak");
     const learnInput = document.getElementById("learn");
     const contactInput = document.getElementById("contact");
@@ -102,6 +127,8 @@
         if (snapshot.exists()) {
           currentProfile = snapshot.val();
 
+          schoolInput.value = currentProfile.school || "";
+          bioInput.value = currentProfile.bio || "";
           speakInput.value = currentProfile.speak || "";
           learnInput.value = currentProfile.learn || "";
           contactInput.value = currentProfile.contact || "";
@@ -134,6 +161,8 @@
       }
 
       const updatedData = {
+        school: schoolInput.value.trim(),
+        bio: bioInput.value.trim(),
         speak: speakInput.value.trim(),
         learn: learnInput.value.trim(),
         contact: contactInput.value.trim()

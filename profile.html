@@ -23,10 +23,16 @@
       font-weight: bold;
     }
 
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
     .nav-links a {
       color: white;
       text-decoration: none;
-      margin-left: 16px;
       font-size: 16px;
       font-weight: normal;
     }
@@ -51,8 +57,10 @@
     }
 
     .info {
-      margin: 8px 0;
+      margin: 10px 0;
       font-size: 16px;
+      color: #374151;
+      line-height: 1.6;
     }
 
     .button {
@@ -65,16 +73,25 @@
       color: white;
       cursor: pointer;
     }
+
+    .bio-box {
+      margin-top: 8px;
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 10px;
+      color: #374151;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <span>My Profile</span>
     <div class="nav-links">
       <a href="index.html">Home</a>
-      <a href="partners.html">Find Partner</a>
-      <a href="create.html">Create Post</a>
-      <a href="myposts.html">My Posts</a>
+      <a href="friends.html">Friends</a>
+      <a href="chat-list.html">Chats</a>
       <a href="profile.html">Profile</a>
     </div>
   </div>
@@ -85,9 +102,13 @@
     <h2 id="name">Loading...</h2>
 
     <div class="info"><strong>Email:</strong> <span id="email"></span></div>
+    <div class="info"><strong>School:</strong> <span id="school"></span></div>
     <div class="info"><strong>Speaks:</strong> <span id="speak"></span></div>
     <div class="info"><strong>Learning:</strong> <span id="learn"></span></div>
-    <div class="info"><strong>Instagram:</strong> <span id="contact"></span></div>
+    <div class="info"><strong>Instagram / Contact:</strong> <span id="contact"></span></div>
+
+    <div class="info"><strong>Bio:</strong></div>
+    <div id="bio" class="bio-box">Not set</div>
 
     <button class="button" onclick="window.location.href='edit-profile.html'">Edit Profile</button>
     <button class="button" onclick="window.location.href='myposts.html'">My Posts</button>
@@ -118,16 +139,21 @@
 
         const nameEl = document.getElementById("name");
         const emailEl = document.getElementById("email");
+        const schoolEl = document.getElementById("school");
         const speakEl = document.getElementById("speak");
         const learnEl = document.getElementById("learn");
         const contactEl = document.getElementById("contact");
+        const bioEl = document.getElementById("bio");
         const avatarEl = document.getElementById("avatar");
 
         nameEl.innerText = data.name || "No name";
         emailEl.innerText = data.email || user.email;
+        schoolEl.innerText = data.school || "Not set";
         speakEl.innerText = data.speak || "Not set";
         learnEl.innerText = data.learn || "Not set";
         contactEl.innerText = data.contact || "Not set";
+        bioEl.innerText = data.bio || "Not set";
+
         avatarEl.src = data.avatar && data.avatar.trim() !== ""
           ? data.avatar
           : "https://via.placeholder.com/90";

@@ -80,6 +80,7 @@
       font-size: 15px;
       color: #374151;
       margin-bottom: 16px;
+      line-height: 1.6;
     }
   </style>
 </head>
@@ -138,7 +139,9 @@
           currentProfile = snapshot.val();
 
           document.getElementById("welcomeUser").innerText =
-            `Posting as ${currentProfile.name || user.email}`;
+            `Posting as ${currentProfile.name || user.email}
+School: ${currentProfile.school || "Not set"}
+Bio: ${currentProfile.bio || "Not set"}`;
 
           if (currentProfile.speak) {
             document.getElementById("speak").value = currentProfile.speak;
@@ -184,6 +187,8 @@
           uid: currentUser.uid,
           name: currentProfile?.name || "Unknown User",
           email: currentUser.email,
+          school: currentProfile?.school || "",
+          bio: currentProfile?.bio || "",
           speak: speak,
           learn: learn,
           content: content,
