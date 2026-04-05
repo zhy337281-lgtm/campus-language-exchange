@@ -4,11 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Language Exchange</title>
+
   <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: Arial, sans-serif;
       background: #f3f4f6;
-      margin: 0;
       color: #111827;
     }
 
@@ -21,6 +27,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -42,144 +56,306 @@
       font-weight: normal;
     }
 
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
     .hero {
       text-align: center;
-      padding: 50px 20px 20px;
+      padding: 60px 20px 30px;
     }
 
     .hero h1 {
-      font-size: 34px;
-      margin-bottom: 10px;
+      font-size: 36px;
+      margin-bottom: 12px;
     }
 
     .hero p {
       font-size: 18px;
       color: #4b5563;
+      margin-bottom: 24px;
+      line-height: 1.6;
     }
 
-    .module-grid {
-      max-width: 1000px;
-      margin: 30px auto 50px;
+    .card-container {
+      max-width: 1200px;
+      margin: 0 auto 50px;
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
       gap: 20px;
-      padding: 0 20px;
+      padding: 0 20px 40px;
     }
 
-    .module-card {
+    .card {
       background: white;
       border-radius: 14px;
-      padding: 22px;
+      padding: 24px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
-    .module-card:hover {
+    .card:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 18px rgba(0,0,0,0.12);
     }
 
-    .module-card h3 {
+    .card h3 {
+      margin-bottom: 12px;
       color: #1d4ed8;
-      margin-bottom: 10px;
+      font-size: 20px;
+      line-height: 1.4;
     }
 
-    .module-card p {
+    .card p {
       color: #4b5563;
-      line-height: 1.6;
-      margin-bottom: 14px;
+      line-height: 1.7;
+      margin-bottom: 18px;
+      min-height: 110px;
     }
 
     .open-btn {
       display: inline-block;
-      padding: 9px 14px;
+      padding: 10px 16px;
       border-radius: 8px;
       background: #2563eb;
       color: white;
-      text-decoration: none;
       font-size: 14px;
+      text-decoration: none;
     }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <span>Language Exchange</span>
+    <div class="nav-left">
+      <span id="pageTitle">Language Exchange</span>
+    </div>
 
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
   <div class="hero">
-    <h1>Language Exchange Zone</h1>
-    <p>Explore partners, create exchange posts, manage your requests, and grow your network.</p>
+    <h1 id="heroTitle">Language Exchange Zone</h1>
+    <p id="heroDesc">
+      Explore partners, create exchange posts, manage your requests, and grow your network.
+    </p>
   </div>
 
-  <div class="module-grid">
-    <div class="module-card" onclick="window.location.href='partners.html'">
-      <h3>Find Partner</h3>
-      <p>Browse language exchange posts, comment, add friends, and start private chats.</p>
-      <span class="open-btn">Open</span>
+  <div class="card-container">
+    <div class="card" onclick="window.location.href='partners.html'">
+      <h3 id="card1Title">Find Partner</h3>
+      <p id="card1Desc">
+        Browse language exchange posts, comment, add friends, and start private chats.
+      </p>
+      <span class="open-btn" id="card1Btn">Open</span>
     </div>
 
-    <div class="module-card" onclick="window.location.href='create.html'">
-      <h3>Create Post</h3>
-      <p>Create your own language exchange post and introduce the languages you speak and learn.</p>
-      <span class="open-btn">Open</span>
+    <div class="card" onclick="window.location.href='create.html'">
+      <h3 id="card2Title">Create Post</h3>
+      <p id="card2Desc">
+        Create your own language exchange post and introduce the languages you speak and learn.
+      </p>
+      <span class="open-btn" id="card2Btn">Open</span>
     </div>
 
-    <div class="module-card" onclick="window.location.href='myposts.html'">
-      <h3>My Posts</h3>
-      <p>Manage your own language exchange posts and check what you have published.</p>
-      <span class="open-btn">Open</span>
+    <div class="card" onclick="window.location.href='myposts.html'">
+      <h3 id="card3Title">My Posts</h3>
+      <p id="card3Desc">
+        Manage your own language exchange posts and check what you have published.
+      </p>
+      <span class="open-btn" id="card3Btn">Open</span>
     </div>
 
-    <div class="module-card" onclick="window.location.href='requests.html'">
-      <h3>Requests</h3>
-      <p>Check and manage incoming friend requests from people you met in the exchange zone.</p>
-      <span class="open-btn">Open</span>
+    <div class="card" onclick="window.location.href='requests.html'">
+      <h3 id="card4Title">Requests</h3>
+      <p id="card4Desc">
+        Check and manage incoming friend requests from people you met in the exchange zone.
+      </p>
+      <span class="open-btn" id="card4Btn">Open</span>
     </div>
-    
-    <div class="module-card" onclick="window.location.href='language-favorites.html'">
-  <h3>Favorite List</h3>
-  <p>See all the language exchange posts you have saved as favorites.</p>
-  <span class="open-btn">Open</span>
-</div>
+
+    <div class="card" onclick="window.location.href='favorites.html'">
+      <h3 id="card5Title">Favorite List</h3>
+      <p id="card5Desc">
+        See all the language exchange posts you have saved as favorites.
+      </p>
+      <span class="open-btn" id="card5Btn">Open</span>
+    </div>
   </div>
 
   <script type="module">
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
+    function getLanguageExchangeText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "言語交流",
+          home: "ホーム",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          login: "ログイン",
+          logout: "ログアウト",
+
+          heroTitle: "Language Exchange Zone",
+          heroDesc: "パートナーを探し、交流投稿を作成し、申請を管理して、つながりを広げましょう。",
+
+          card1Title: "パートナーを探す",
+          card1Desc: "言語交流の投稿を見たり、コメントしたり、友達追加したり、個人チャットを始めたりできます。",
+          card1Btn: "開く",
+
+          card2Title: "投稿を作成",
+          card2Desc: "自分の言語交流投稿を作成し、話せる言語や学びたい言語を紹介しましょう。",
+          card2Btn: "開く",
+
+          card3Title: "自分の投稿",
+          card3Desc: "自分が作成した言語交流投稿を管理し、公開した内容を確認できます。",
+          card3Btn: "開く",
+
+          card4Title: "申請",
+          card4Desc: "交流ゾーンで出会った人からの友達申請を確認・管理できます。",
+          card4Btn: "開く",
+
+          card5Title: "お気に入り一覧",
+          card5Desc: "お気に入り保存した言語交流投稿を一覧で確認できます。",
+          card5Btn: "開く"
+        };
+      }
+
+      return {
+        pageTitle: "Language Exchange",
+        home: "Home",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        login: "Login",
+        logout: "Logout",
+
+        heroTitle: "Language Exchange Zone",
+        heroDesc: "Explore partners, create exchange posts, manage your requests, and grow your network.",
+
+        card1Title: "Find Partner",
+        card1Desc: "Browse language exchange posts, comment, add friends, and start private chats.",
+        card1Btn: "Open",
+
+        card2Title: "Create Post",
+        card2Desc: "Create your own language exchange post and introduce the languages you speak and learn.",
+        card2Btn: "Open",
+
+        card3Title: "My Posts",
+        card3Desc: "Manage your own language exchange posts and check what you have published.",
+        card3Btn: "Open",
+
+        card4Title: "Requests",
+        card4Desc: "Check and manage incoming friend requests from people you met in the exchange zone.",
+        card4Btn: "Open",
+
+        card5Title: "Favorite List",
+        card5Desc: "See all the language exchange posts you have saved as favorites.",
+        card5Btn: "Open"
+      };
+    }
+
+    function t(key) {
+      const lang = getCurrentLanguage();
+      return getLanguageExchangeText(lang)[key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getLanguageExchangeText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+
+      document.getElementById("heroTitle").innerText = text.heroTitle;
+      document.getElementById("heroDesc").innerText = text.heroDesc;
+
+      document.getElementById("card1Title").innerText = text.card1Title;
+      document.getElementById("card1Desc").innerText = text.card1Desc;
+      document.getElementById("card1Btn").innerText = text.card1Btn;
+
+      document.getElementById("card2Title").innerText = text.card2Title;
+      document.getElementById("card2Desc").innerText = text.card2Desc;
+      document.getElementById("card2Btn").innerText = text.card2Btn;
+
+      document.getElementById("card3Title").innerText = text.card3Title;
+      document.getElementById("card3Desc").innerText = text.card3Desc;
+      document.getElementById("card3Btn").innerText = text.card3Btn;
+
+      document.getElementById("card4Title").innerText = text.card4Title;
+      document.getElementById("card4Desc").innerText = text.card4Desc;
+      document.getElementById("card4Btn").innerText = text.card4Btn;
+
+      document.getElementById("card5Title").innerText = text.card5Title;
+      document.getElementById("card5Desc").innerText = text.card5Desc;
+      document.getElementById("card5Btn").innerText = text.card5Btn;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = text.logout;
+      } else {
+        authLink.innerText = text.login;
+      }
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
+      const text = getLanguageExchangeText(getCurrentLanguage());
+
       if (user) {
         try {
           const snapshot = await get(ref(db, "users/" + user.uid));
           const userData = snapshot.exists() ? snapshot.val() : null;
 
           userInfo.innerText = "👤 " + (userData?.name || user.email);
-          authLink.innerText = "Logout";
+          authLink.dataset.loggedIn = "true";
+          authLink.innerText = text.logout;
           authLink.href = "#";
           authLink.onclick = async (e) => {
             e.preventDefault();
             await signOut(auth);
-            alert("Logged out");
             window.location.href = "login.html";
           };
         } catch (error) {
           console.error(error);
           userInfo.innerText = "👤 " + user.email;
-          authLink.innerText = "Logout";
+          authLink.dataset.loggedIn = "true";
+          authLink.innerText = text.logout;
           authLink.href = "#";
           authLink.onclick = async (e) => {
             e.preventDefault();
@@ -189,11 +365,16 @@
         }
       } else {
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = text.login;
         authLink.href = "login.html";
         authLink.onclick = null;
       }
+
+      applyLanguage();
     });
+
+    applyLanguage();
   </script>
 </body>
 </html>

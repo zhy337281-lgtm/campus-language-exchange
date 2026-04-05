@@ -20,6 +20,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -39,6 +47,14 @@
     #userInfo {
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -194,13 +210,22 @@
 </head>
 <body>
   <div class="navbar">
-    <span>My Community Posts</span>
+    <div class="nav-left">
+      <span id="pageTitle">My Community Posts</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="community.html">Community</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="community.html" id="navCommunity">Community</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
@@ -208,7 +233,7 @@
 
   <div class="container">
     <div class="top-actions">
-      <button onclick="window.location.href='community-create.html'">Create New Community Post</button>
+      <button id="createNewBtn" onclick="window.location.href='community-create.html'">Create New Community Post</button>
     </div>
 
     <div id="myPostsContainer"></div>
@@ -218,10 +243,12 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, onValue, get, push, set, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
     const myPostsContainer = document.getElementById("myPostsContainer");
+    const languageSwitcher = document.getElementById("languageSwitcher");
 
     let currentUser = null;
     let currentProfile = null;
@@ -229,6 +256,109 @@
     let allComments = {};
     let allLikes = {};
     let myFavorites = {};
+
+    function getCommunityMyPostsText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "自分のコミュニティ投稿",
+          home: "ホーム",
+          community: "コミュニティ",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          login: "ログイン",
+          logout: "ログアウト",
+          createNew: "新しいコミュニティ投稿を作成",
+          pleaseLoginFirst: "先にログインしてください。",
+          noPostsYet: "まだ投稿していません。",
+          unknownUser: "不明なユーザー",
+          noCommentsYet: "まだコメントはありません。",
+          comments: "コメント",
+          writeComment: "コメントを書く...",
+          comment: "コメント",
+          pleaseWriteComment: "コメントを入力してください。",
+          like: "いいね",
+          unlike: "いいね解除",
+          favorite: "お気に入り",
+          unfavorite: "お気に入り解除",
+          delete: "削除",
+          youCanOnlyDeleteOwnPost: "自分の投稿のみ削除できます。"
+        };
+      }
+
+      return {
+        pageTitle: "My Community Posts",
+        home: "Home",
+        community: "Community",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        login: "Login",
+        logout: "Logout",
+        createNew: "Create New Community Post",
+        pleaseLoginFirst: "Please login first.",
+        noPostsYet: "You have not posted anything yet.",
+        unknownUser: "Unknown User",
+        noCommentsYet: "No comments yet.",
+        comments: "Comments",
+        writeComment: "Write a comment...",
+        comment: "Comment",
+        pleaseWriteComment: "Please write a comment.",
+        like: "Like",
+        unlike: "Unlike",
+        favorite: "Favorite",
+        unfavorite: "Unfavorite",
+        delete: "Delete",
+        youCanOnlyDeleteOwnPost: "You can only delete your own post."
+      };
+    }
+
+    function t(key) {
+      return getCommunityMyPostsText(getCurrentLanguage())[key] || key;
+    }
+
+    function formatTime(timestamp) {
+      if (!timestamp) return "";
+      return new Date(timestamp).toLocaleString();
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getCommunityMyPostsText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navCommunity").innerText = text.community;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+      document.getElementById("createNewBtn").innerText = text.createNew;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = text.logout;
+      } else {
+        authLink.innerText = text.login;
+      }
+
+      languageSwitcher.value = lang;
+      renderMyPosts();
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
       currentUser = user || null;
@@ -248,7 +378,8 @@
           renderMyPosts();
         });
 
-        authLink.innerText = "Logout";
+        authLink.dataset.loggedIn = "true";
+        authLink.innerText = t("logout");
         authLink.href = "#";
         authLink.onclick = async (e) => {
           e.preventDefault();
@@ -257,7 +388,8 @@
         };
       } else {
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = t("login");
         authLink.href = "login.html";
         authLink.onclick = null;
       }
@@ -285,23 +417,9 @@
       renderMyPosts();
     });
 
-    function formatTime(timestamp) {
-      if (!timestamp) return "";
-      return new Date(timestamp).toLocaleString();
-    }
-
-    function escapeHtml(text) {
-      return String(text || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
     async function toggleLike(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -317,7 +435,7 @@
 
     async function toggleFavorite(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -333,12 +451,12 @@
 
     async function deleteCommunityPost(postId, postUid) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
       if (currentUser.uid !== postUid) {
-        alert("You can only delete your own post.");
+        alert(t("youCanOnlyDeleteOwnPost"));
         return;
       }
 
@@ -350,7 +468,7 @@
 
     async function submitCommunityComment(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -358,7 +476,7 @@
       const text = input.value.trim();
 
       if (!text) {
-        alert("Please write a comment.");
+        alert(t("pleaseWriteComment"));
         return;
       }
 
@@ -378,7 +496,7 @@
     function renderComments(postId) {
       const commentGroup = allComments[postId];
       if (!commentGroup) {
-        return `<p class="empty">No comments yet.</p>`;
+        return `<p class="empty">${t("noCommentsYet")}</p>`;
       }
 
       const commentsArray = Object.entries(commentGroup)
@@ -386,7 +504,7 @@
         .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
       if (commentsArray.length === 0) {
-        return `<p class="empty">No comments yet.</p>`;
+        return `<p class="empty">${t("noCommentsYet")}</p>`;
       }
 
       return commentsArray.map(comment => {
@@ -397,7 +515,7 @@
         return `
           <div class="comment-item">
             <div style="display:flex; gap:10px; align-items:flex-start;">
-              <img src="${avatar}" class="avatar" style="width:36px; height:36px;">
+              <img src="${avatar}" class="avatar" style="width:36px; height:36px;" alt="avatar">
               <div style="flex:1;">
                 <div class="comment-meta">${escapeHtml(comment.name || "Anonymous")} · ${formatTime(comment.createdAt)}</div>
                 <div class="comment-text">${escapeHtml(comment.text || "")}</div>
@@ -412,14 +530,14 @@
       if (!myPostsContainer) return;
 
       if (!currentUser) {
-        myPostsContainer.innerHTML = `<p class="empty">Please login first.</p>`;
+        myPostsContainer.innerHTML = `<p class="empty">${t("pleaseLoginFirst")}</p>`;
         return;
       }
 
       const myPosts = allPosts.filter(post => post.uid === currentUser.uid);
 
       if (myPosts.length === 0) {
-        myPostsContainer.innerHTML = `<p class="empty">You have not posted anything yet.</p>`;
+        myPostsContainer.innerHTML = `<p class="empty">${t("noPostsYet")}</p>`;
         return;
       }
 
@@ -441,7 +559,7 @@
           <div class="post-header">
             <img src="${avatar}" class="avatar" alt="avatar">
             <div>
-              <div class="post-name">${escapeHtml(post.name || "Unknown User")}</div>
+              <div class="post-name">${escapeHtml(post.name || t("unknownUser"))}</div>
               <div class="post-time">${formatTime(post.createdAt)}</div>
             </div>
           </div>
@@ -452,23 +570,25 @@
 
           <div class="action-row">
             <button class="like-btn" onclick="handleToggleCommunityLike('${post.id}')">
-              ${liked ? "Unlike" : "Like"} (${likeCount})
+              ${liked ? t("unlike") : t("like")} (${likeCount})
             </button>
 
             <button class="favorite-btn" onclick="handleToggleCommunityFavorite('${post.id}')">
-              ${favorited ? "Unfavorite" : "Favorite"}
+              ${favorited ? t("unfavorite") : t("favorite")}
             </button>
 
-            <button class="delete-btn" onclick="handleDeleteCommunityPost('${post.id}', '${post.uid}')">Delete</button>
+            <button class="delete-btn" onclick="handleDeleteCommunityPost('${post.id}', '${post.uid}')">
+              ${t("delete")}
+            </button>
           </div>
 
           <div class="comments-section">
-            <h4>Comments</h4>
+            <h4>${t("comments")}</h4>
             ${renderComments(post.id)}
 
             <div class="comment-input-row">
-              <input type="text" id="community-comment-input-${post.id}" placeholder="Write a comment...">
-              <button class="comment-btn" onclick="handleSubmitCommunityComment('${post.id}')">Comment</button>
+              <input type="text" id="community-comment-input-${post.id}" placeholder="${t("writeComment")}">
+              <button class="comment-btn" onclick="handleSubmitCommunityComment('${post.id}')">${t("comment")}</button>
             </div>
           </div>
         `;
@@ -481,6 +601,8 @@
     window.handleToggleCommunityFavorite = toggleFavorite;
     window.handleDeleteCommunityPost = deleteCommunityPost;
     window.handleSubmitCommunityComment = submitCommunityComment;
+
+    applyLanguage();
   </script>
 </body>
 </html>

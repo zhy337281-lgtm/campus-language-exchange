@@ -2,195 +2,244 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Chat</title>
+
   <style>
     body {
+      margin: 0;
       font-family: Arial, sans-serif;
       background: #f3f4f6;
-      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
 
     .navbar {
       background: #1d4ed8;
       color: white;
-      padding: 16px 24px;
-      font-size: 22px;
-      font-weight: bold;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 20px;
     }
 
-    .container {
+    .nav-links {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .language-switcher {
+      border-radius: 6px;
+      padding: 4px 6px;
+    }
+
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       max-width: 800px;
-      margin: 30px auto;
+      width: 100%;
+      margin: 0 auto;
       background: white;
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
 
     .messages {
-      min-height: 400px;
-      max-height: 500px;
-      overflow-y: auto;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
+      flex: 1;
       padding: 16px;
-      background: #f9fafb;
-      margin-bottom: 16px;
+      overflow-y: auto;
     }
 
     .message {
       margin-bottom: 12px;
+      max-width: 70%;
       padding: 10px 12px;
       border-radius: 10px;
-      max-width: 70%;
+      line-height: 1.4;
     }
 
-    .mine {
-      background: #dbeafe;
+    .me {
+      background: #2563eb;
+      color: white;
       margin-left: auto;
     }
 
     .other {
       background: #e5e7eb;
-      margin-right: auto;
-    }
-
-    .meta {
-      font-size: 12px;
-      color: #6b7280;
-      margin-bottom: 4px;
     }
 
     .input-row {
       display: flex;
+      padding: 10px;
+      border-top: 1px solid #ddd;
       gap: 10px;
     }
 
     .input-row input {
       flex: 1;
-      padding: 12px;
-      border: 1px solid #d1d5db;
+      padding: 10px;
       border-radius: 8px;
-      font-size: 15px;
+      border: 1px solid #ccc;
     }
 
     .input-row button {
-      padding: 12px 18px;
+      padding: 10px 14px;
       border: none;
       border-radius: 8px;
       background: #2563eb;
       color: white;
       cursor: pointer;
     }
+
+    .empty {
+      text-align: center;
+      color: #6b7280;
+      margin-top: 40px;
+    }
   </style>
 </head>
+
 <body>
-  <div class="navbar">Private Chat</div>
 
-  <div class="container">
-    <div id="messages" class="messages"></div>
+<div class="navbar">
+  <span id="pageTitle">Chat</span>
 
-    <div class="input-row">
-      <input type="text" id="messageInput" placeholder="Type a message...">
-      <button id="sendBtn">Send</button>
-    </div>
+  <div class="nav-links">
+    <a href="chat-list.html" id="backBtn">Back</a>
+
+    <select id="languageSwitcher" class="language-switcher">
+      <option value="en">EN</option>
+      <option value="ja">日本語</option>
+    </select>
   </div>
+</div>
 
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-    import { ref, onValue, push, set, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+<div class="chat-container">
+  <div id="messages" class="messages"></div>
 
-    const params = new URLSearchParams(window.location.search);
-    const chatId = params.get("chatId");
+  <div class="input-row">
+    <input id="messageInput" placeholder="Type a message..." />
+    <button id="sendBtn">Send</button>
+  </div>
+</div>
 
-    const messagesEl = document.getElementById("messages");
-    const inputEl = document.getElementById("messageInput");
-    const sendBtn = document.getElementById("sendBtn");
+<script type="module">
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { ref, onValue, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
-    let currentUser = null;
-    let currentProfile = null;
+const messagesDiv = document.getElementById("messages");
+const input = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const languageSwitcher = document.getElementById("languageSwitcher");
 
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        alert("Please login first.");
-        window.location.href = "login.html";
-        return;
-      }
+let currentUser = null;
+let chatId = new URLSearchParams(window.location.search).get("chatId");
 
-      currentUser = user;
-
-      const profileSnapshot = await get(ref(db, `users/${user.uid}`));
-      currentProfile = profileSnapshot.exists() ? profileSnapshot.val() : null;
-
-      loadMessages();
-    });
-
-    function formatTime(timestamp) {
-      if (!timestamp) return "";
-      return new Date(timestamp).toLocaleString();
+function getText(lang){
+  if(lang === "ja"){
+    return {
+      title:"チャット",
+      back:"戻る",
+      placeholder:"メッセージを入力...",
+      send:"送信",
+      empty:"チャットが選択されていません"
     }
+  }
+  return {
+    title:"Chat",
+    back:"Back",
+    placeholder:"Type a message...",
+    send:"Send",
+    empty:"No chat selected"
+  }
+}
 
-    function loadMessages() {
-      onValue(ref(db, `messages/${chatId}`), (snapshot) => {
-        messagesEl.innerHTML = "";
-        const data = snapshot.val() || {};
+function t(key){
+  return getText(getCurrentLanguage())[key]
+}
 
-        const messages = Object.entries(data)
-          .map(([id, msg]) => ({ id, ...msg }))
-          .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+function applyLanguage(){
+  const lang = getCurrentLanguage()
+  const text = getText(lang)
 
-        messages.forEach(msg => {
-          const div = document.createElement("div");
-          div.className = "message " + (msg.senderUid === currentUser.uid ? "mine" : "other");
+  document.title = text.title
+  document.getElementById("pageTitle").innerText = text.title
+  document.getElementById("backBtn").innerText = text.back
+  input.placeholder = text.placeholder
+  sendBtn.innerText = text.send
 
-          div.innerHTML = `
-            <div class="meta">${msg.senderName || "Unknown"} · ${formatTime(msg.createdAt)}</div>
-            <div>${msg.text || ""}</div>
-          `;
+  languageSwitcher.value = lang
+}
 
-          messagesEl.appendChild(div);
-        });
+languageSwitcher.addEventListener("change", e=>{
+  setCurrentLanguage(e.target.value)
+  applyLanguage()
+})
 
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-      });
-    }
+onAuthStateChanged(auth, user=>{
+  if(!user){
+    window.location.href="login.html"
+    return
+  }
 
-    async function sendMessage() {
-      if (!currentUser) return;
+  currentUser = user
+  loadMessages()
+})
 
-      const text = inputEl.value.trim();
-      if (!text) return;
+function loadMessages(){
+  if(!chatId){
+    messagesDiv.innerHTML = `<p class="empty">${t("empty")}</p>`
+    return
+  }
 
-      try {
-        const newMsgRef = push(ref(db, `messages/${chatId}`));
+  onValue(ref(db, `messages/${chatId}`), snapshot=>{
+    messagesDiv.innerHTML = ""
 
-        await set(newMsgRef, {
-          senderUid: currentUser.uid,
-          senderName: currentProfile?.name || currentUser.email,
-          senderAvatar: currentProfile?.avatar || "",
-          text,
-          createdAt: Date.now()
-        });
+    const data = snapshot.val() || {}
 
-        await set(ref(db, `chats/${chatId}/lastMessage`), text);
-        await set(ref(db, `chats/${chatId}/lastMessageAt`), Date.now());
+    Object.values(data).forEach(msg=>{
+      const div = document.createElement("div")
+      div.className = "message " + (msg.uid === currentUser.uid ? "me":"other")
+      div.innerText = msg.text
+      messagesDiv.appendChild(div)
+    })
 
-        inputEl.value = "";
-      } catch (error) {
-        console.error(error);
-        alert("Failed to send message: " + error.message);
-      }
-    }
+    messagesDiv.scrollTop = messagesDiv.scrollHeight
+  })
+}
 
-    sendBtn.addEventListener("click", sendMessage);
+sendBtn.addEventListener("click", sendMessage)
+input.addEventListener("keypress", e=>{
+  if(e.key === "Enter") sendMessage()
+})
 
-    inputEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        sendMessage();
-      }
-    });
-  </script>
+function sendMessage(){
+  const text = input.value.trim()
+  if(!text) return
+
+  const newMsgRef = push(ref(db, `messages/${chatId}`))
+
+  set(newMsgRef,{
+    uid: currentUser.uid,
+    text,
+    createdAt: Date.now()
+  })
+
+  input.value = ""
+}
+
+applyLanguage()
+</script>
+
 </body>
 </html>

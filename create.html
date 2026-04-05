@@ -21,14 +21,37 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
     }
 
     .nav-links a {
       color: white;
       text-decoration: none;
-      margin-left: 16px;
       font-size: 16px;
       font-weight: normal;
+      margin-left: 0;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -80,52 +103,181 @@
       font-size: 15px;
       color: #374151;
       margin-bottom: 16px;
-      line-height: 1.6;
+      line-height: 1.7;
+      white-space: pre-line;
     }
   </style>
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <div class="nav-left">
+      <span id="pageTitle">Create Post</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="partners.html">Find Partner</a>
-      <a href="create.html">Create Post</a>
-      <a href="myposts.html">My Posts</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="partners.html" id="navFindPartner">Find Partner</a>
+      <a href="create.html" id="navCreatePost">Create Post</a>
+      <a href="myposts.html" id="navMyPosts">My Posts</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
     </div>
   </div>
 
   <div class="container">
-    <h1>Create a Post</h1>
+    <h1 id="heading">Create a Post</h1>
     <p id="welcomeUser"></p>
 
-    <label>Languages You Speak</label>
+    <label id="speakLabel">Languages You Speak</label>
     <input type="text" id="speak" placeholder="Chinese, English..." />
 
-    <label>Language You Want to Learn</label>
+    <label id="learnLabel">Language You Want to Learn</label>
     <input type="text" id="learn" placeholder="Japanese..." />
 
-    <label>Post Content</label>
+    <label id="contentLabel">Post Content</label>
     <textarea id="content" placeholder="Write your introduction here..."></textarea>
 
-    <label>Instagram or Contact</label>
+    <label id="contactLabel">Instagram or Contact</label>
     <input type="text" id="contact" placeholder="@yourinstagram or Line ID" />
 
-    <button onclick="submitPost()">Submit</button>
+    <button onclick="submitPost()" id="submitBtn">Submit</button>
   </div>
 
   <script type="module">
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     let currentUser = null;
     let currentProfile = null;
 
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
+    function getCreatePostText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "投稿を作成",
+          home: "ホーム",
+          findPartner: "パートナーを探す",
+          createPost: "投稿を作成",
+          myPosts: "自分の投稿",
+          profile: "プロフィール",
+          heading: "投稿を作成",
+          speak: "話せる言語",
+          speakPlaceholder: "中国語、英語...",
+          learn: "学びたい言語",
+          learnPlaceholder: "日本語...",
+          content: "投稿内容",
+          contentPlaceholder: "自己紹介を書いてください...",
+          contact: "Instagram / 連絡先",
+          contactPlaceholder: "@instagram または LINE ID",
+          submit: "投稿する",
+          pleaseLoginFirst: "先にログインしてください",
+          failedToLoadUserInfo: "ユーザー情報の読み込みに失敗しました。",
+          pleaseFillRequired: "必須項目をすべて入力してください。",
+          postSubmitted: "投稿が完了しました。",
+          failedToSubmitPost: "投稿に失敗しました: ",
+          postingAs: "投稿者",
+          school: "学校",
+          bio: "Bio",
+          notSet: "未設定",
+          unknownUser: "不明なユーザー"
+        };
+      }
+
+      return {
+        pageTitle: "Create Post",
+        home: "Home",
+        findPartner: "Find Partner",
+        createPost: "Create Post",
+        myPosts: "My Posts",
+        profile: "Profile",
+        heading: "Create a Post",
+        speak: "Languages You Speak",
+        speakPlaceholder: "Chinese, English...",
+        learn: "Language You Want to Learn",
+        learnPlaceholder: "Japanese...",
+        content: "Post Content",
+        contentPlaceholder: "Write your introduction here...",
+        contact: "Instagram or Contact",
+        contactPlaceholder: "@yourinstagram or Line ID",
+        submit: "Submit",
+        pleaseLoginFirst: "Please login first",
+        failedToLoadUserInfo: "Failed to load user info.",
+        pleaseFillRequired: "Please fill in all required fields.",
+        postSubmitted: "Post submitted successfully!",
+        failedToSubmitPost: "Failed to submit post: ",
+        postingAs: "Posting as",
+        school: "School",
+        bio: "Bio",
+        notSet: "Not set",
+        unknownUser: "Unknown User"
+      };
+    }
+
+    function t(key) {
+      return getCreatePostText(getCurrentLanguage())[key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getCreatePostText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navFindPartner").innerText = text.findPartner;
+      document.getElementById("navCreatePost").innerText = text.createPost;
+      document.getElementById("navMyPosts").innerText = text.myPosts;
+      document.getElementById("navProfile").innerText = text.profile;
+      document.getElementById("heading").innerText = text.heading;
+      document.getElementById("speakLabel").innerText = text.speak;
+      document.getElementById("speak").placeholder = text.speakPlaceholder;
+      document.getElementById("learnLabel").innerText = text.learn;
+      document.getElementById("learn").placeholder = text.learnPlaceholder;
+      document.getElementById("contentLabel").innerText = text.content;
+      document.getElementById("content").placeholder = text.contentPlaceholder;
+      document.getElementById("contactLabel").innerText = text.contact;
+      document.getElementById("contact").placeholder = text.contactPlaceholder;
+      document.getElementById("submitBtn").innerText = text.submit;
+
+      languageSwitcher.value = lang;
+      updateWelcomeText();
+    }
+
+    function updateWelcomeText() {
+      const welcomeEl = document.getElementById("welcomeUser");
+      if (!welcomeEl) return;
+
+      if (!currentUser) {
+        welcomeEl.innerText = "";
+        return;
+      }
+
+      if (currentProfile) {
+        welcomeEl.innerText =
+`${t("postingAs")} ${currentProfile.name || currentUser.email}
+${t("school")}: ${currentProfile.school || t("notSet")}
+${t("bio")}: ${currentProfile.bio || t("notSet")}`;
+      } else {
+        welcomeEl.innerText = `${t("postingAs")} ${currentUser.email}`;
+      }
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
+
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        alert("Please login first");
+        alert(t("pleaseLoginFirst"));
         window.location.href = "login.html";
         return;
       }
@@ -138,10 +290,7 @@
         if (snapshot.exists()) {
           currentProfile = snapshot.val();
 
-          document.getElementById("welcomeUser").innerText =
-            `Posting as ${currentProfile.name || user.email}
-School: ${currentProfile.school || "Not set"}
-Bio: ${currentProfile.bio || "Not set"}`;
+          updateWelcomeText();
 
           if (currentProfile.speak) {
             document.getElementById("speak").value = currentProfile.speak;
@@ -155,18 +304,18 @@ Bio: ${currentProfile.bio || "Not set"}`;
             document.getElementById("contact").value = currentProfile.contact;
           }
         } else {
-          document.getElementById("welcomeUser").innerText =
-            `Posting as ${user.email}`;
+          currentProfile = null;
+          updateWelcomeText();
         }
       } catch (error) {
         console.error(error);
-        alert("Failed to load user info.");
+        alert(t("failedToLoadUserInfo"));
       }
     });
 
     async function submitPost() {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -176,7 +325,7 @@ Bio: ${currentProfile.bio || "Not set"}`;
       const contact = document.getElementById("contact").value.trim();
 
       if (!speak || !learn || !content) {
-        alert("Please fill in all required fields.");
+        alert(t("pleaseFillRequired"));
         return;
       }
 
@@ -185,7 +334,7 @@ Bio: ${currentProfile.bio || "Not set"}`;
 
         await set(newPostRef, {
           uid: currentUser.uid,
-          name: currentProfile?.name || "Unknown User",
+          name: currentProfile?.name || t("unknownUser"),
           email: currentUser.email,
           school: currentProfile?.school || "",
           bio: currentProfile?.bio || "",
@@ -197,15 +346,17 @@ Bio: ${currentProfile.bio || "Not set"}`;
           createdAt: Date.now()
         });
 
-        alert("Post submitted successfully!");
+        alert(t("postSubmitted"));
         window.location.href = "partners.html";
       } catch (error) {
         console.error(error);
-        alert("Failed to submit post: " + error.message);
+        alert(t("failedToSubmitPost") + error.message);
       }
     }
 
     window.submitPost = submitPost;
+
+    applyLanguage();
   </script>
 </body>
 </html>

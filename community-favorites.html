@@ -20,6 +20,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -39,6 +47,14 @@
     #userInfo {
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -105,19 +121,29 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Community Favorites</span>
+    <div class="nav-left">
+      <span id="pageTitle">Community Favorites</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="community.html">Community</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="community.html" id="navCommunity">Community</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
   <div class="container">
+    <h2 id="heading">Favorite List</h2>
     <div id="favoritesContainer" class="empty">Loading favorites...</div>
   </div>
 
@@ -125,15 +151,86 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, onValue, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
     const favoritesContainer = document.getElementById("favoritesContainer");
+    const languageSwitcher = document.getElementById("languageSwitcher");
 
     let currentUser = null;
     let currentProfile = null;
     let allPosts = {};
     let myFavorites = {};
+
+    function getCommunityFavoritesText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "コミュニティお気に入り",
+          heading: "お気に入り一覧",
+          home: "ホーム",
+          community: "コミュニティ",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          login: "ログイン",
+          logout: "ログアウト",
+          loading: "お気に入りを読み込み中...",
+          pleaseLoginFirst: "先にログインしてください。",
+          noFavoritesYet: "まだお気に入りのコミュニティ投稿はありません。",
+          unknownUser: "不明なユーザー"
+        };
+      }
+
+      return {
+        pageTitle: "Community Favorites",
+        heading: "Favorite List",
+        home: "Home",
+        community: "Community",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        login: "Login",
+        logout: "Logout",
+        loading: "Loading favorites...",
+        pleaseLoginFirst: "Please login first.",
+        noFavoritesYet: "No favorite community posts yet.",
+        unknownUser: "Unknown User"
+      };
+    }
+
+    function t(key) {
+      return getCommunityFavoritesText(getCurrentLanguage())[key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getCommunityFavoritesText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("heading").innerText = text.heading;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navCommunity").innerText = text.community;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = text.logout;
+      } else {
+        authLink.innerText = text.login;
+      }
+
+      languageSwitcher.value = lang;
+      renderFavorites();
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
       currentUser = user || null;
@@ -153,7 +250,8 @@
           renderFavorites();
         });
 
-        authLink.innerText = "Logout";
+        authLink.dataset.loggedIn = "true";
+        authLink.innerText = t("logout");
         authLink.href = "#";
         authLink.onclick = async (e) => {
           e.preventDefault();
@@ -164,11 +262,14 @@
         currentProfile = null;
         myFavorites = {};
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = t("login");
         authLink.href = "login.html";
         authLink.onclick = null;
         renderFavorites();
       }
+
+      applyLanguage();
     });
 
     onValue(ref(db, "communityPosts"), (snapshot) => {
@@ -194,14 +295,14 @@
       if (!favoritesContainer) return;
 
       if (!currentUser) {
-        favoritesContainer.innerHTML = `<p class="empty">Please login first.</p>`;
+        favoritesContainer.innerHTML = `<p class="empty">${t("pleaseLoginFirst")}</p>`;
         return;
       }
 
       const favoritePostIds = Object.keys(myFavorites || {});
 
       if (favoritePostIds.length === 0) {
-        favoritesContainer.innerHTML = `<p class="empty">No favorite community posts yet.</p>`;
+        favoritesContainer.innerHTML = `<p class="empty">${t("noFavoritesYet")}</p>`;
         return;
       }
 
@@ -222,7 +323,7 @@
           <div class="post-header">
             <img src="${avatar}" class="avatar" alt="avatar" loading="lazy">
             <div>
-              <div class="post-name">${escapeHtml(post.name || "Unknown User")}</div>
+              <div class="post-name">${escapeHtml(post.name || t("unknownUser"))}</div>
               <div class="post-time">${formatTime(post.createdAt)}</div>
             </div>
           </div>
@@ -238,6 +339,8 @@
         favoritesContainer.appendChild(div);
       });
     }
+
+    applyLanguage();
   </script>
 </body>
 </html>

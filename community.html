@@ -21,6 +21,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -42,6 +50,14 @@
       font-weight: normal;
     }
 
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
     .hero {
       text-align: center;
       padding: 50px 20px 20px;
@@ -55,6 +71,7 @@
     .hero p {
       font-size: 18px;
       color: #4b5563;
+      line-height: 1.6;
     }
 
     .module-grid {
@@ -83,12 +100,14 @@
     .module-card h3 {
       color: #1d4ed8;
       margin-bottom: 10px;
+      line-height: 1.4;
     }
 
     .module-card p {
       color: #4b5563;
       line-height: 1.6;
       margin-bottom: 14px;
+      min-height: 100px;
     }
 
     .open-btn {
@@ -104,47 +123,55 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Community</span>
+    <div class="nav-left">
+      <span id="pageTitle">Campus Community</span>
+    </div>
 
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="community.html">Community</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="community.html" id="navCommunity">Community</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
   <div class="hero">
-    <h1>Campus Community Zone</h1>
-    <p>Share campus life, ideas, food tips, events, daily moments, and interact with students through posts and replies.</p>
+    <h1 id="heroTitle">Campus Community Zone</h1>
+    <p id="heroDesc">Share campus life, ideas, food tips, events, daily moments, and interact with students through posts and replies.</p>
   </div>
 
   <div class="module-grid">
     <div class="module-card" onclick="window.location.href='community-feed.html'">
-      <h3>Community Feed</h3>
-      <p>Browse campus posts, images, daily updates, tips, and discussions from students.</p>
-      <span class="open-btn">Open</span>
+      <h3 id="card1Title">Community Feed</h3>
+      <p id="card1Desc">Browse campus posts, images, daily updates, tips, and discussions from students.</p>
+      <span class="open-btn" id="card1Btn">Open</span>
     </div>
 
     <div class="module-card" onclick="window.location.href='community-create.html'">
-      <h3>Create Community Post</h3>
-      <p>Post text, upload images, and share what is happening in your campus life.</p>
-      <span class="open-btn">Open</span>
+      <h3 id="card2Title">Create Community Post</h3>
+      <p id="card2Desc">Post text, upload images, and share what is happening in your campus life.</p>
+      <span class="open-btn" id="card2Btn">Open</span>
     </div>
 
     <div class="module-card" onclick="window.location.href='community-myposts.html'">
-      <h3>My Community Posts</h3>
-      <p>Manage your own community posts, replies, and shared content.</p>
-      <span class="open-btn">Open</span>
+      <h3 id="card3Title">My Community Posts</h3>
+      <p id="card3Desc">Manage your own community posts, replies, and shared content.</p>
+      <span class="open-btn" id="card3Btn">Open</span>
     </div>
 
     <div class="module-card" onclick="window.location.href='community-favorites.html'">
-      <h3>Favorite List</h3>
-      <p>See all the community posts you have saved as favorites.</p>
-      <span class="open-btn">Open</span>
+      <h3 id="card4Title">Favorite List</h3>
+      <p id="card4Desc">See all the community posts you have saved as favorites.</p>
+      <span class="open-btn" id="card4Btn">Open</span>
     </div>
   </div>
 
@@ -152,29 +179,145 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
+    function getCommunityText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "キャンパスコミュニティ",
+          home: "ホーム",
+          community: "コミュニティ",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          login: "ログイン",
+          logout: "ログアウト",
+
+          heroTitle: "Campus Community Zone",
+          heroDesc: "キャンパス生活、アイデア、食べ物のおすすめ、イベント、日常の出来事を共有し、投稿や返信を通して学生同士で交流しましょう。",
+
+          card1Title: "コミュニティフィード",
+          card1Desc: "学生によるキャンパス投稿、画像、日常の更新、ヒント、ディスカッションを見ることができます。",
+          card1Btn: "開く",
+
+          card2Title: "コミュニティ投稿を作成",
+          card2Desc: "テキストや画像を投稿して、自分のキャンパス生活で起きていることを共有しましょう。",
+          card2Btn: "開く",
+
+          card3Title: "自分のコミュニティ投稿",
+          card3Desc: "自分のコミュニティ投稿、返信、共有した内容を管理できます。",
+          card3Btn: "開く",
+
+          card4Title: "お気に入り一覧",
+          card4Desc: "お気に入り保存したコミュニティ投稿を一覧で確認できます。",
+          card4Btn: "開く"
+        };
+      }
+
+      return {
+        pageTitle: "Campus Community",
+        home: "Home",
+        community: "Community",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        login: "Login",
+        logout: "Logout",
+
+        heroTitle: "Campus Community Zone",
+        heroDesc: "Share campus life, ideas, food tips, events, daily moments, and interact with students through posts and replies.",
+
+        card1Title: "Community Feed",
+        card1Desc: "Browse campus posts, images, daily updates, tips, and discussions from students.",
+        card1Btn: "Open",
+
+        card2Title: "Create Community Post",
+        card2Desc: "Post text, upload images, and share what is happening in your campus life.",
+        card2Btn: "Open",
+
+        card3Title: "My Community Posts",
+        card3Desc: "Manage your own community posts, replies, and shared content.",
+        card3Btn: "Open",
+
+        card4Title: "Favorite List",
+        card4Desc: "See all the community posts you have saved as favorites.",
+        card4Btn: "Open"
+      };
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getCommunityText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navCommunity").innerText = text.community;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+
+      document.getElementById("heroTitle").innerText = text.heroTitle;
+      document.getElementById("heroDesc").innerText = text.heroDesc;
+
+      document.getElementById("card1Title").innerText = text.card1Title;
+      document.getElementById("card1Desc").innerText = text.card1Desc;
+      document.getElementById("card1Btn").innerText = text.card1Btn;
+
+      document.getElementById("card2Title").innerText = text.card2Title;
+      document.getElementById("card2Desc").innerText = text.card2Desc;
+      document.getElementById("card2Btn").innerText = text.card2Btn;
+
+      document.getElementById("card3Title").innerText = text.card3Title;
+      document.getElementById("card3Desc").innerText = text.card3Desc;
+      document.getElementById("card3Btn").innerText = text.card3Btn;
+
+      document.getElementById("card4Title").innerText = text.card4Title;
+      document.getElementById("card4Desc").innerText = text.card4Desc;
+      document.getElementById("card4Btn").innerText = text.card4Btn;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = text.logout;
+      } else {
+        authLink.innerText = text.login;
+      }
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
+      const text = getCommunityText(getCurrentLanguage());
+
       if (user) {
         try {
           const snapshot = await get(ref(db, "users/" + user.uid));
           const userData = snapshot.exists() ? snapshot.val() : null;
 
           userInfo.innerText = "👤 " + (userData?.name || user.email);
-          authLink.innerText = "Logout";
+          authLink.dataset.loggedIn = "true";
+          authLink.innerText = text.logout;
           authLink.href = "#";
           authLink.onclick = async (e) => {
             e.preventDefault();
             await signOut(auth);
-            alert("Logged out");
             window.location.href = "login.html";
           };
         } catch (error) {
           console.error(error);
           userInfo.innerText = "👤 " + user.email;
-          authLink.innerText = "Logout";
+          authLink.dataset.loggedIn = "true";
+          authLink.innerText = text.logout;
           authLink.href = "#";
           authLink.onclick = async (e) => {
             e.preventDefault();
@@ -184,11 +327,16 @@
         }
       } else {
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = text.login;
         authLink.href = "login.html";
         authLink.onclick = null;
       }
+
+      applyLanguage();
     });
+
+    applyLanguage();
   </script>
 </body>
 </html>

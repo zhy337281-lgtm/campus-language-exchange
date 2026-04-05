@@ -21,6 +21,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -40,6 +48,14 @@
     #userInfo {
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -64,6 +80,7 @@
     .profile-card p {
       margin: 6px 0;
       color: #374151;
+      line-height: 1.6;
     }
 
     .avatar-img {
@@ -106,19 +123,29 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Language Exchange Favorites</span>
+    <div class="nav-left">
+      <span id="pageTitle">Language Exchange Favorites</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="language-exchange.html">Language Exchange</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="language-exchange.html" id="navLanguageExchange">Language Exchange</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
   <div class="container">
+    <h2 id="heading">Favorite List</h2>
     <div id="favoritesContainer" class="empty">Loading favorites...</div>
   </div>
 
@@ -126,16 +153,137 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, onValue, get, remove, set, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
     const favoritesContainer = document.getElementById("favoritesContainer");
+    const languageSwitcher = document.getElementById("languageSwitcher");
 
     let currentUser = null;
     let currentProfile = null;
     let allPosts = {};
     let myFavorites = {};
     let allLikes = {};
+    let myFriends = {};
+
+    function getFavoritesText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "言語交流お気に入り",
+          heading: "お気に入り一覧",
+          home: "ホーム",
+          languageExchange: "Language Exchange",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          login: "ログイン",
+          logout: "ログアウト",
+          loading: "お気に入りを読み込み中...",
+          pleaseLoginFirst: "先にログインしてください。",
+          noFavoritesYet: "まだお気に入りの言語交流投稿はありません。",
+          unknownUser: "不明なユーザー",
+          speaks: "話せる言語",
+          learning: "学びたい言語",
+          introduction: "自己紹介",
+          contact: "連絡先",
+          notProvided: "未設定",
+          like: "いいね",
+          unlike: "いいね解除",
+          favorite: "お気に入り",
+          unfavorite: "お気に入り解除",
+          addFriend: "友達追加",
+          friendsStatus: "友達",
+          message: "メッセージ",
+          youCannotAddYourself: "自分自身は追加できません。",
+          youAreAlreadyFriends: "すでに友達です。",
+          friendRequestExists: "すでに友達申請があります。",
+          friendRequestSent: "友達申請を送りました。",
+          failedToSendFriendRequest: "友達申請の送信に失敗しました: ",
+          failedToOpenChat: "チャットを開けませんでした: "
+        };
+      }
+
+      return {
+        pageTitle: "Language Exchange Favorites",
+        heading: "Favorite List",
+        home: "Home",
+        languageExchange: "Language Exchange",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        login: "Login",
+        logout: "Logout",
+        loading: "Loading favorites...",
+        pleaseLoginFirst: "Please login first.",
+        noFavoritesYet: "No favorite language exchange posts yet.",
+        unknownUser: "Unknown User",
+        speaks: "Speaks",
+        learning: "Learning",
+        introduction: "Introduction",
+        contact: "Contact",
+        notProvided: "Not provided",
+        like: "Like",
+        unlike: "Unlike",
+        favorite: "Favorite",
+        unfavorite: "Unfavorite",
+        addFriend: "Add Friend",
+        friendsStatus: "Friends",
+        message: "Message",
+        youCannotAddYourself: "You cannot add yourself.",
+        youAreAlreadyFriends: "You are already friends.",
+        friendRequestExists: "A friend request already exists.",
+        friendRequestSent: "Friend request sent.",
+        failedToSendFriendRequest: "Failed to send friend request: ",
+        failedToOpenChat: "Failed to open chat: "
+      };
+    }
+
+    function t(key) {
+      return getFavoritesText(getCurrentLanguage())[key] || key;
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getFavoritesText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("heading").innerText = text.heading;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navLanguageExchange").innerText = text.languageExchange;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = text.logout;
+      } else {
+        authLink.innerText = text.login;
+      }
+
+      if (!currentUser) {
+        favoritesContainer.innerHTML = '<p class="empty">' + text.pleaseLoginFirst + '</p>';
+      }
+
+      languageSwitcher.value = lang;
+      renderFavorites();
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
       currentUser = user || null;
@@ -155,7 +303,13 @@
           renderFavorites();
         });
 
-        authLink.innerText = "Logout";
+        onValue(ref(db, `friends/${user.uid}`), (snapshot) => {
+          myFriends = snapshot.val() || {};
+          renderFavorites();
+        });
+
+        authLink.dataset.loggedIn = "true";
+        authLink.innerText = t("logout");
         authLink.href = "#";
         authLink.onclick = async (e) => {
           e.preventDefault();
@@ -165,12 +319,15 @@
       } else {
         currentProfile = null;
         myFavorites = {};
+        myFriends = {};
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = t("login");
         authLink.href = "login.html";
         authLink.onclick = null;
-        renderFavorites();
       }
+
+      renderFavorites();
     });
 
     onValue(ref(db, "posts"), (snapshot) => {
@@ -183,18 +340,9 @@
       renderFavorites();
     });
 
-    function escapeHtml(text) {
-      return String(text || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
     async function toggleLike(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -210,7 +358,7 @@
 
     async function toggleFavorite(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -226,21 +374,21 @@
 
     async function sendFriendRequest(targetUid, targetName, targetAvatar) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
       if (currentUser.uid === targetUid) {
-        alert("You cannot add yourself.");
+        alert(t("youCannotAddYourself"));
         return;
       }
 
       try {
         const friendsSnapshot = await get(ref(db, `friends/${currentUser.uid}`));
-        const myFriends = friendsSnapshot.val() || {};
+        const currentFriends = friendsSnapshot.val() || {};
 
-        if (myFriends[targetUid]) {
-          alert("You are already friends.");
+        if (currentFriends[targetUid]) {
+          alert(t("youAreAlreadyFriends"));
           return;
         }
 
@@ -261,7 +409,7 @@
         );
 
         if (duplicate) {
-          alert("A friend request already exists.");
+          alert(t("friendRequestExists"));
           return;
         }
 
@@ -278,16 +426,16 @@
           createdAt: Date.now()
         });
 
-        alert("Friend request sent.");
+        alert(t("friendRequestSent"));
       } catch (error) {
         console.error(error);
-        alert("Failed to send friend request: " + error.message);
+        alert(t("failedToSendFriendRequest") + error.message);
       }
     }
 
     async function openPrivateChat(targetUid) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -326,10 +474,10 @@
           });
         }
 
-        window.location.href = `chat.html?chatId=${foundChatId}`;
+        window.location.href = "chat.html?chatId=" + foundChatId;
       } catch (error) {
         console.error(error);
-        alert("Failed to open chat: " + error.message);
+        alert(t("failedToOpenChat") + error.message);
       }
     }
 
@@ -337,14 +485,14 @@
       if (!favoritesContainer) return;
 
       if (!currentUser) {
-        favoritesContainer.innerHTML = `<p class="empty">Please login first.</p>`;
+        favoritesContainer.innerHTML = '<p class="empty">' + t("pleaseLoginFirst") + '</p>';
         return;
       }
 
       const favoritePostIds = Object.keys(myFavorites || {});
 
       if (favoritePostIds.length === 0) {
-        favoritesContainer.innerHTML = `<p class="empty">No favorite language exchange posts yet.</p>`;
+        favoritesContainer.innerHTML = '<p class="empty">' + t("noFavoritesYet") + '</p>';
         return;
       }
 
@@ -361,36 +509,39 @@
         const likeCount = allLikes[postId] ? Object.keys(allLikes[postId]).length : 0;
         const liked = currentUser && allLikes[postId] && allLikes[postId][currentUser.uid];
         const favorited = currentUser && myFavorites[postId];
+        const alreadyFriend = myFriends && myFriends[post.uid];
 
         const card = document.createElement("div");
         card.className = "profile-card";
 
         card.innerHTML = `
           <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
-          <h3>👤 ${escapeHtml(post.name || "Unknown User")}</h3>
-          <p><strong>Speaks:</strong> ${escapeHtml(post.speak || "Not provided")}</p>
-          <p><strong>Learning:</strong> ${escapeHtml(post.learn || "Not provided")}</p>
-          <p><strong>Introduction:</strong> ${escapeHtml(post.content || "")}</p>
-          <p><strong>Contact:</strong> ${escapeHtml(post.contact || "Not provided")}</p>
+          <h3>👤 ${escapeHtml(post.name || t("unknownUser"))}</h3>
+          <p><strong>${t("speaks")}:</strong> ${escapeHtml(post.speak || t("notProvided"))}</p>
+          <p><strong>${t("learning")}:</strong> ${escapeHtml(post.learn || t("notProvided"))}</p>
+          <p><strong>${t("introduction")}:</strong> ${escapeHtml(post.content || "")}</p>
+          <p><strong>${t("contact")}:</strong> ${escapeHtml(post.contact || t("notProvided"))}</p>
 
           <div class="action-row">
             <button class="like-btn" onclick="handleToggleLike('${postId}')">
-              ${liked ? "Unlike" : "Like"} (${likeCount})
+              ${liked ? t("unlike") : t("like")} (${likeCount})
             </button>
 
             <button class="favorite-btn" onclick="handleToggleFavorite('${postId}')">
-              ${favorited ? "Unfavorite" : "Favorite"}
+              ${favorited ? t("unfavorite") : t("favorite")}
             </button>
 
             ${
               currentUser && currentUser.uid !== post.uid
                 ? `
-                  <button class="friend-btn" onclick="handleFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')">
-                    Add Friend
-                  </button>
+                  ${
+                    alreadyFriend
+                      ? `<button class="friend-btn" style="background:#9ca3af; cursor:default;" disabled>${t("friendsStatus")}</button>`
+                      : `<button class="friend-btn" onclick="handleFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')">${t("addFriend")}</button>`
+                  }
 
                   <button class="message-btn" onclick="handleMessage('${post.uid}')">
-                    Message
+                    ${t("message")}
                   </button>
                 `
                 : ""
@@ -406,6 +557,8 @@
     window.handleToggleFavorite = toggleFavorite;
     window.handleFriendRequest = sendFriendRequest;
     window.handleMessage = openPrivateChat;
+
+    applyLanguage();
   </script>
 </body>
 </html>

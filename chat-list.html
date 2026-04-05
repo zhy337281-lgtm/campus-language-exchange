@@ -20,14 +20,42 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
     }
 
     .nav-links a {
       color: white;
       text-decoration: none;
-      margin-left: 16px;
       font-size: 16px;
       font-weight: normal;
+      margin-left: 0;
+    }
+
+    #userInfo {
+      font-size: 16px;
+      font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -63,38 +91,151 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <div class="nav-left">
+      <span id="pageTitle">Chats</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="partners.html">Find Partner</a>
-      <a href="requests.html">Requests</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="partners.html" id="navFindPartner">Find Partner</a>
+      <a href="requests.html" id="navRequests">Requests</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
+      <span id="userInfo"></span>
+      <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
   <div class="container">
-    <h2>My Chats</h2>
+    <h2 id="heading">My Chats</h2>
     <div id="chat-list-container"></div>
   </div>
 
   <script type="module">
     import { auth, db } from "./firebase.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const container = document.getElementById("chat-list-container");
+    const userInfo = document.getElementById("userInfo");
+    const authLink = document.getElementById("authLink");
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
     let currentUser = null;
+
+    function getChatListText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "チャット",
+          home: "ホーム",
+          findPartner: "パートナーを探す",
+          requests: "申請",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          heading: "チャット一覧",
+          login: "ログイン",
+          logout: "ログアウト",
+          pleaseLoginFirst: "先にログインしてください。",
+          noChatsYet: "まだチャットはありません。",
+          noMessagesYet: "まだメッセージはありません",
+          unknownUser: "不明なユーザー",
+          failedToLoadChats: "チャットの読み込みに失敗しました: "
+        };
+      }
+
+      return {
+        pageTitle: "Chats",
+        home: "Home",
+        findPartner: "Find Partner",
+        requests: "Requests",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        heading: "My Chats",
+        login: "Login",
+        logout: "Logout",
+        pleaseLoginFirst: "Please login first.",
+        noChatsYet: "No chats yet.",
+        noMessagesYet: "No messages yet",
+        unknownUser: "Unknown User",
+        failedToLoadChats: "Failed to load chats: "
+      };
+    }
+
+    function t(key) {
+      const lang = getCurrentLanguage();
+      return getChatListText(lang)[key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getChatListText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navFindPartner").innerText = text.findPartner;
+      document.getElementById("navRequests").innerText = text.requests;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+      document.getElementById("heading").innerText = text.heading;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = text.logout;
+      } else {
+        authLink.innerText = text.login;
+      }
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", async (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+      if (currentUser) {
+        await loadChats();
+      }
+    });
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         window.location.href = "login.html";
         return;
       }
 
       currentUser = user;
+
+      try {
+        const snapshot = await get(ref(db, "users/" + user.uid));
+        const userData = snapshot.exists() ? snapshot.val() : null;
+        userInfo.innerText = "👤 " + (userData?.name || user.email);
+      } catch (error) {
+        console.error(error);
+        userInfo.innerText = "👤 " + user.email;
+      }
+
+      authLink.dataset.loggedIn = "true";
+      authLink.innerText = t("logout");
+      authLink.href = "#";
+      authLink.onclick = async (e) => {
+        e.preventDefault();
+        await signOut(auth);
+        window.location.href = "login.html";
+      };
+
+      applyLanguage();
       await loadChats();
     });
 
@@ -105,11 +246,11 @@
 
         const chats = chatsSnapshot.val() || {};
         const users = usersSnapshot.val() || {};
-
         const myChats = [];
 
         Object.entries(chats).forEach(([chatId, chat]) => {
           if (
+            chat &&
             chat.type === "private" &&
             chat.memberIds &&
             chat.memberIds[currentUser.uid]
@@ -118,9 +259,9 @@
             const otherUser = users[otherUid] || {};
 
             myChats.push({
-              chatId,
-              otherUid,
-              otherName: otherUser.name || "Unknown User",
+              chatId: chatId,
+              otherUid: otherUid,
+              otherName: otherUser.name || t("unknownUser"),
               lastMessage: chat.lastMessage || "",
               lastMessageAt: chat.lastMessageAt || 0
             });
@@ -130,7 +271,7 @@
         myChats.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
 
         if (myChats.length === 0) {
-          container.innerHTML = `<p class="empty">No chats yet.</p>`;
+          container.innerHTML = '<p class="empty">' + t("noChatsYet") + '</p>';
           return;
         }
 
@@ -141,11 +282,11 @@
           div.className = "chat-card";
           div.innerHTML = `
             <div class="chat-name">${chat.otherName}</div>
-            <div class="chat-meta">${chat.lastMessage || "No messages yet"}</div>
+            <div class="chat-meta">${chat.lastMessage || t("noMessagesYet")}</div>
           `;
 
           div.addEventListener("click", () => {
-            window.location.href = `chat.html?chatId=${chat.chatId}`;
+            window.location.href = "chat.html?chatId=" + chat.chatId;
           });
 
           container.appendChild(div);
@@ -153,9 +294,11 @@
 
       } catch (error) {
         console.error(error);
-        alert("Failed to load chats: " + error.message);
+        alert(t("failedToLoadChats") + error.message);
       }
     }
+
+    applyLanguage();
   </script>
 </body>
 </html>

@@ -20,14 +20,37 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
     }
 
     .nav-links a {
       color: white;
       text-decoration: none;
-      margin-left: 16px;
       font-size: 16px;
       font-weight: normal;
+      margin-left: 0;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -52,6 +75,7 @@
     .post p {
       margin: 6px 0;
       color: #374151;
+      line-height: 1.6;
     }
 
     .empty {
@@ -81,18 +105,26 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <div class="nav-left">
+      <span id="pageTitle">My Posts</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="partners.html">Find Partner</a>
-      <a href="create.html">Create Post</a>
-      <a href="myposts.html">My Posts</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="partners.html" id="navFindPartner">Find Partner</a>
+      <a href="create.html" id="navCreatePost">Create Post</a>
+      <a href="myposts.html" id="navMyPosts">My Posts</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
     </div>
   </div>
 
   <div class="container">
-    <h2>My Posts</h2>
+    <h2 id="heading">My Posts</h2>
     <div id="posts"></div>
   </div>
 
@@ -100,14 +132,102 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, onValue, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const container = document.getElementById("posts");
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
     let currentUser = null;
     let allPosts = [];
 
+    function getMyPostsText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "自分の投稿",
+          home: "ホーム",
+          findPartner: "パートナーを探す",
+          createPost: "投稿を作成",
+          myPosts: "自分の投稿",
+          profile: "プロフィール",
+          heading: "自分の投稿",
+          pleaseLoginFirst: "先にログインしてください。",
+          youCanOnlyDeleteOwnPosts: "自分の投稿のみ削除できます。",
+          postDeletedSuccessfully: "投稿を削除しました。",
+          failedToDeletePost: "投稿の削除に失敗しました: ",
+          noPostsYet: "まだ投稿していません。",
+          unknownUser: "不明なユーザー",
+          speaks: "話せる言語",
+          learning: "学びたい言語",
+          introduction: "自己紹介",
+          contact: "連絡先",
+          notProvided: "未設定",
+          delete: "削除"
+        };
+      }
+
+      return {
+        pageTitle: "My Posts",
+        home: "Home",
+        findPartner: "Find Partner",
+        createPost: "Create Post",
+        myPosts: "My Posts",
+        profile: "Profile",
+        heading: "My Posts",
+        pleaseLoginFirst: "Please login first.",
+        youCanOnlyDeleteOwnPosts: "You can only delete your own posts.",
+        postDeletedSuccessfully: "Post deleted successfully.",
+        failedToDeletePost: "Failed to delete post: ",
+        noPostsYet: "You have not posted anything yet.",
+        unknownUser: "Unknown User",
+        speaks: "Speaks",
+        learning: "Learning",
+        introduction: "Introduction",
+        contact: "Contact",
+        notProvided: "Not provided",
+        delete: "Delete"
+      };
+    }
+
+    function t(key) {
+      const lang = getCurrentLanguage();
+      return getMyPostsText(lang)[key] || key;
+    }
+
+    function escapeHtml(text) {
+      return String(text || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getMyPostsText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navFindPartner").innerText = text.findPartner;
+      document.getElementById("navCreatePost").innerText = text.createPost;
+      document.getElementById("navMyPosts").innerText = text.myPosts;
+      document.getElementById("navProfile").innerText = text.profile;
+      document.getElementById("heading").innerText = text.heading;
+
+      languageSwitcher.value = lang;
+      renderMyPosts();
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
+
     onAuthStateChanged(auth, (user) => {
       if (!user) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         window.location.href = "login.html";
         return;
       }
@@ -136,21 +256,21 @@
 
     async function deletePost(postId, postUid) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
       if (currentUser.uid !== postUid) {
-        alert("You can only delete your own posts.");
+        alert(t("youCanOnlyDeleteOwnPosts"));
         return;
       }
 
       try {
         await remove(ref(db, "posts/" + postId));
-        alert("Post deleted successfully.");
+        alert(t("postDeletedSuccessfully"));
       } catch (error) {
         console.error(error);
-        alert("Failed to delete post: " + error.message);
+        alert(t("failedToDeletePost") + error.message);
       }
     }
 
@@ -164,7 +284,7 @@
       const myPosts = allPosts.filter(post => post.uid === currentUser.uid);
 
       if (myPosts.length === 0) {
-        container.innerHTML = '<p class="empty">You have not posted anything yet.</p>';
+        container.innerHTML = '<p class="empty">' + t("noPostsYet") + '</p>';
         return;
       }
 
@@ -178,12 +298,12 @@
 
         div.innerHTML = `
           <img class="avatar-img" src="${avatarSrc}" alt="Avatar">
-          <h3>👤 ${post.name || "Unknown User"}</h3>
-          <p><strong>Speaks:</strong> ${post.speak || "Not provided"}</p>
-          <p><strong>Learning:</strong> ${post.learn || "Not provided"}</p>
-          <p><strong>Introduction:</strong> ${post.content || ""}</p>
-          <p><strong>Contact:</strong> ${post.contact || "Not provided"}</p>
-          <button class="delete-btn" data-id="${post.id}" data-uid="${post.uid}">Delete</button>
+          <h3>👤 ${escapeHtml(post.name || t("unknownUser"))}</h3>
+          <p><strong>${t("speaks")}:</strong> ${escapeHtml(post.speak || t("notProvided"))}</p>
+          <p><strong>${t("learning")}:</strong> ${escapeHtml(post.learn || t("notProvided"))}</p>
+          <p><strong>${t("introduction")}:</strong> ${escapeHtml(post.content || "")}</p>
+          <p><strong>${t("contact")}:</strong> ${escapeHtml(post.contact || t("notProvided"))}</p>
+          <button class="delete-btn" data-id="${post.id}" data-uid="${post.uid}">${t("delete")}</button>
         `;
 
         container.appendChild(div);
@@ -197,6 +317,8 @@
         });
       });
     }
+
+    applyLanguage();
   </script>
 </body>
 </html>

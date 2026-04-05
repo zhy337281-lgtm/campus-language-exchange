@@ -20,6 +20,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -39,6 +47,14 @@
     #userInfo {
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -105,25 +121,34 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Create Community Post</span>
+    <div class="nav-left">
+      <span id="pageTitle">Create Community Post</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="community.html">Community</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="community.html" id="navCommunity">Community</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
   <div class="container">
-    <h1>Share Something</h1>
+    <h1 id="heading">Share Something</h1>
 
-    <label>Post Content</label>
+    <label id="contentLabel">Post Content</label>
     <textarea id="postText" placeholder="Share something about campus life..."></textarea>
 
-    <label>Upload Image</label>
+    <label id="imageLabel">Upload Image</label>
     <input type="file" id="postImage" accept="image/*">
 
     <img id="imagePreview" class="preview" alt="Preview">
@@ -135,6 +160,7 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
@@ -142,20 +168,106 @@
     const imagePreview = document.getElementById("imagePreview");
     const submitBtn = document.getElementById("submitBtn");
     const postText = document.getElementById("postText");
+    const languageSwitcher = document.getElementById("languageSwitcher");
 
     let currentUser = null;
     let currentProfile = null;
     let selectedImageBase64 = "";
     let isSubmitting = false;
 
+    function getCommunityCreateText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "コミュニティ投稿を作成",
+          home: "ホーム",
+          community: "コミュニティ",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          login: "ログイン",
+          logout: "ログアウト",
+          heading: "投稿をシェア",
+          content: "投稿内容",
+          contentPlaceholder: "キャンパス生活についてシェアしましょう...",
+          image: "画像をアップロード",
+          post: "投稿する",
+          posting: "投稿中...",
+          pleaseLoginFirst: "先にログインしてください。",
+          pleaseAddTextOrImage: "テキストまたは画像を追加してください。",
+          postCreated: "コミュニティ投稿を作成しました。",
+          failedToCreatePost: "投稿の作成に失敗しました: "
+        };
+      }
+
+      return {
+        pageTitle: "Create Community Post",
+        home: "Home",
+        community: "Community",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        login: "Login",
+        logout: "Logout",
+        heading: "Share Something",
+        content: "Post Content",
+        contentPlaceholder: "Share something about campus life...",
+        image: "Upload Image",
+        post: "Post",
+        posting: "Posting...",
+        pleaseLoginFirst: "Please login first.",
+        pleaseAddTextOrImage: "Please add some text or an image.",
+        postCreated: "Community post created!",
+        failedToCreatePost: "Failed to create post: "
+      };
+    }
+
+    function t(key) {
+      return getCommunityCreateText(getCurrentLanguage())[key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getCommunityCreateText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navCommunity").innerText = text.community;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+      document.getElementById("heading").innerText = text.heading;
+      document.getElementById("contentLabel").innerText = text.content;
+      document.getElementById("postText").placeholder = text.contentPlaceholder;
+      document.getElementById("imageLabel").innerText = text.image;
+      document.getElementById("submitBtn").innerText = isSubmitting ? text.posting : text.post;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = text.logout;
+      } else {
+        authLink.innerText = text.login;
+      }
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
+
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
         currentUser = null;
         currentProfile = null;
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = t("login");
         authLink.href = "login.html";
         authLink.onclick = null;
+        applyLanguage();
         return;
       }
 
@@ -170,13 +282,16 @@
         userInfo.innerText = "👤 " + user.email;
       }
 
-      authLink.innerText = "Logout";
+      authLink.dataset.loggedIn = "true";
+      authLink.innerText = t("logout");
       authLink.href = "#";
       authLink.onclick = async (e) => {
         e.preventDefault();
         await signOut(auth);
         window.location.href = "login.html";
       };
+
+      applyLanguage();
     });
 
     imageInput.addEventListener("change", () => {
@@ -201,21 +316,21 @@
       if (isSubmitting) return;
 
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
       const text = postText.value.trim();
 
       if (!text && !selectedImageBase64) {
-        alert("Please add some text or an image.");
+        alert(t("pleaseAddTextOrImage"));
         return;
       }
 
       try {
         isSubmitting = true;
         submitBtn.disabled = true;
-        submitBtn.innerText = "Posting...";
+        submitBtn.innerText = t("posting");
 
         const newPostRef = push(ref(db, "communityPosts"));
 
@@ -228,17 +343,19 @@
           createdAt: Date.now()
         });
 
-        alert("Community post created!");
+        alert(t("postCreated"));
         window.location.href = "community-feed.html";
       } catch (error) {
         console.error(error);
-        alert("Failed to create post: " + error.message);
+        alert(t("failedToCreatePost") + error.message);
       } finally {
         isSubmitting = false;
         submitBtn.disabled = false;
-        submitBtn.innerText = "Post";
+        submitBtn.innerText = t("post");
       }
     });
+
+    applyLanguage();
   </script>
 </body>
 </html>
