@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LinkCampus Community</title>
   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1d4ed8">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+  <meta name="theme-color" content="#1d4ed8">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+
   <style>
     * {
       box-sizing: border-box;
@@ -30,6 +31,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .navbar-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -49,6 +58,14 @@
     #userInfo {
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .hero {
@@ -128,46 +145,54 @@
 </head>
 <body>
   <div class="navbar">
-    <span>LinkCampus Community</span>
+    <div class="navbar-left">
+      <span id="siteName">LinkCampus Community</span>
+    </div>
 
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
   </div>
 
   <div class="hero">
-    <h1>Welcome to LinkCampus Community</h1>
-    <p>Connect with students, practice languages, and build your campus community.</p>
+    <h1 id="welcomeTitle">Welcome to LinkCampus Community</h1>
+    <p id="welcomeDesc">Connect with students, practice languages, and build your campus community.</p>
   </div>
 
-  <h2 class="section-title">Features</h2>
+  <h2 class="section-title" id="featuresTitle">Features</h2>
 
   <div class="card-container">
     <div class="card" onclick="window.location.href='language-exchange.html'">
-      <h3>Language Exchange</h3>
-      <p>Find language partners, create exchange posts, manage requests, and build cross-cultural connections.</p>
-      <span class="enter-btn">Enter Language Exchange</span>
+      <h3 id="languageExchangeTitle">Language Exchange</h3>
+      <p id="languageExchangeDesc">Find language partners, create exchange posts, manage requests, and build cross-cultural connections.</p>
+      <span class="enter-btn" id="enterLanguageExchange">Enter Language Exchange</span>
     </div>
 
     <div class="card" onclick="window.location.href='community.html'">
-      <h3>Campus Community</h3>
-      <p>Share campus life, ideas, food tips, events, daily moments, and interact with students through community posts and replies.</p>
-      <span class="enter-btn">Enter Community</span>
+      <h3 id="communityTitle">Campus Community</h3>
+      <p id="communityDesc">Share campus life, ideas, food tips, events, daily moments, and interact with students through community posts and replies.</p>
+      <span class="enter-btn" id="enterCommunity">Enter Community</span>
     </div>
 
     <div class="card" onclick="window.location.href='marketplace.html'">
-      <h3>Marketplace</h3>
-      <p>Buy, sell, and exchange useful items inside your student community. This module can be expanded later.</p>
-      <span class="enter-btn">Enter Marketplace</span>
+      <h3 id="marketplaceTitle">Marketplace</h3>
+      <p id="marketplaceDesc">Buy, sell, and exchange useful items inside your student community. This module can be expanded later.</p>
+      <span class="enter-btn" id="enterMarketplace">Enter Marketplace</span>
     </div>
   </div>
 
-  <div class="footer">
+  <div class="footer" id="footerText">
     Built for students at universities starting from Science Tokyo to the world.
   </div>
 
@@ -175,29 +200,74 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { translations, getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const t = translations[lang];
+
+      document.documentElement.lang = lang;
+      document.getElementById("siteName").innerText = t.siteName;
+      document.getElementById("navHome").innerText = t.home;
+      document.getElementById("navFriends").innerText = t.friends;
+      document.getElementById("navChats").innerText = t.chats;
+      document.getElementById("navProfile").innerText = t.profile;
+      document.getElementById("welcomeTitle").innerText = t.welcomeTitle;
+      document.getElementById("welcomeDesc").innerText = t.welcomeDesc;
+      document.getElementById("featuresTitle").innerText = t.features;
+      document.getElementById("languageExchangeTitle").innerText = t.languageExchangeTitle;
+      document.getElementById("languageExchangeDesc").innerText = t.languageExchangeDesc;
+      document.getElementById("enterLanguageExchange").innerText = t.enterLanguageExchange;
+      document.getElementById("communityTitle").innerText = t.communityTitle;
+      document.getElementById("communityDesc").innerText = t.communityDesc;
+      document.getElementById("enterCommunity").innerText = t.enterCommunity;
+      document.getElementById("marketplaceTitle").innerText = t.marketplaceTitle;
+      document.getElementById("marketplaceDesc").innerText = t.marketplaceDesc;
+      document.getElementById("enterMarketplace").innerText = t.enterMarketplace;
+      document.getElementById("footerText").innerText = t.footerText;
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = t.logout;
+      } else {
+        authLink.innerText = t.login;
+      }
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
+      const lang = getCurrentLanguage();
+      const t = translations[lang];
+
       if (user) {
         try {
           const snapshot = await get(ref(db, "users/" + user.uid));
           const userData = snapshot.exists() ? snapshot.val() : null;
 
           userInfo.innerText = "👤 " + (userData?.name || user.email);
-          authLink.innerText = "Logout";
+          authLink.dataset.loggedIn = "true";
+          authLink.innerText = t.logout;
           authLink.href = "#";
           authLink.onclick = async (e) => {
             e.preventDefault();
             await signOut(auth);
-            alert("Logged out");
+            alert(t.logout);
             window.location.href = "login.html";
           };
         } catch (error) {
           console.error(error);
           userInfo.innerText = "👤 " + user.email;
-          authLink.innerText = "Logout";
+          authLink.dataset.loggedIn = "true";
+          authLink.innerText = t.logout;
           authLink.href = "#";
           authLink.onclick = async (e) => {
             e.preventDefault();
@@ -207,24 +277,30 @@
         }
       } else {
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = t.login;
         authLink.href = "login.html";
         authLink.onclick = null;
       }
+
+      applyLanguage();
     });
+
+    applyLanguage();
   </script>
+
   <script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js")
-        .then((registration) => {
-          console.log("Service Worker registered:", registration);
-        })
-        .catch((error) => {
-          console.log("Service Worker registration failed:", error);
-        });
-    });
-  }
-</script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js")
+          .then((registration) => {
+            console.log("Service Worker registered:", registration);
+          })
+          .catch((error) => {
+            console.log("Service Worker registration failed:", error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>

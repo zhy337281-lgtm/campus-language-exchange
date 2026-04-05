@@ -21,6 +21,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -35,6 +43,14 @@
       text-decoration: none;
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -87,12 +103,20 @@
 </head>
 <body>
   <div class="navbar">
-    <span>My Profile</span>
+    <div class="nav-left">
+      <span id="pageTitle">My Profile</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
     </div>
   </div>
 
@@ -101,68 +125,159 @@
 
     <h2 id="name">Loading...</h2>
 
-    <div class="info"><strong>Email:</strong> <span id="email"></span></div>
-    <div class="info"><strong>School:</strong> <span id="school"></span></div>
-    <div class="info"><strong>Speaks:</strong> <span id="speak"></span></div>
-    <div class="info"><strong>Learning:</strong> <span id="learn"></span></div>
-    <div class="info"><strong>Instagram / Contact:</strong> <span id="contact"></span></div>
+    <div class="info"><strong id="labelEmail">Email:</strong> <span id="email"></span></div>
+    <div class="info"><strong id="labelSchool">School:</strong> <span id="school"></span></div>
+    <div class="info"><strong id="labelSpeaks">Speaks:</strong> <span id="speak"></span></div>
+    <div class="info"><strong id="labelLearning">Learning:</strong> <span id="learn"></span></div>
+    <div class="info"><strong id="labelContact">Instagram / Contact:</strong> <span id="contact"></span></div>
 
-    <div class="info"><strong>Bio:</strong></div>
+    <div class="info"><strong id="labelBio">Bio:</strong></div>
     <div id="bio" class="bio-box">Not set</div>
 
-    <button class="button" onclick="window.location.href='edit-profile.html'">Edit Profile</button>
-    <button class="button" onclick="window.location.href='myposts.html'">My Posts</button>
-    <button class="button" onclick="window.location.href='change-password.html'">Change Password</button>
+    <button class="button" id="editProfileBtn" onclick="window.location.href='edit-profile.html'">Edit Profile</button>
+    <button class="button" id="myPostsBtn" onclick="window.location.href='myposts.html'">My Posts</button>
+    <button class="button" id="changePasswordBtn" onclick="window.location.href='change-password.html'">Change Password</button>
   </div>
 
   <script type="module">
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { translations, getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        alert("Please login first");
-        window.location.href = "login.html";
-        return;
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
+    function getProfileText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "プロフィール",
+          home: "ホーム",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          email: "メール:",
+          school: "学校:",
+          speaks: "話せる言語:",
+          learning: "学びたい言語:",
+          contact: "Instagram / 連絡先:",
+          bio: "Bio:",
+          editProfile: "プロフィール編集",
+          myPosts: "自分の投稿",
+          changePassword: "パスワード変更",
+          loading: "読み込み中...",
+          noName: "名前未設定",
+          notSet: "未設定",
+          pleaseLoginFirst: "先にログインしてください。",
+          userDataNotFound: "ユーザーデータが見つかりません。",
+          failedToLoadProfile: "プロフィールの読み込みに失敗しました: "
+        };
       }
 
-      try {
-        const snapshot = await get(ref(db, "users/" + user.uid));
+      return {
+        pageTitle: "My Profile",
+        home: "Home",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        email: "Email:",
+        school: "School:",
+        speaks: "Speaks:",
+        learning: "Learning:",
+        contact: "Instagram / Contact:",
+        bio: "Bio:",
+        editProfile: "Edit Profile",
+        myPosts: "My Posts",
+        changePassword: "Change Password",
+        loading: "Loading...",
+        noName: "No name",
+        notSet: "Not set",
+        pleaseLoginFirst: "Please login first",
+        userDataNotFound: "User data not found in database.",
+        failedToLoadProfile: "Failed to load profile: "
+      };
+    }
 
-        if (!snapshot.exists()) {
-          alert("User data not found in database.");
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const t = getProfileText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = t.pageTitle;
+      document.getElementById("pageTitle").innerText = t.pageTitle;
+      document.getElementById("navHome").innerText = t.home;
+      document.getElementById("navFriends").innerText = t.friends;
+      document.getElementById("navChats").innerText = t.chats;
+      document.getElementById("navProfile").innerText = t.profile;
+      document.getElementById("labelEmail").innerText = t.email;
+      document.getElementById("labelSchool").innerText = t.school;
+      document.getElementById("labelSpeaks").innerText = t.speaks;
+      document.getElementById("labelLearning").innerText = t.learning;
+      document.getElementById("labelContact").innerText = t.contact;
+      document.getElementById("labelBio").innerText = t.bio;
+      document.getElementById("editProfileBtn").innerText = t.editProfile;
+      document.getElementById("myPostsBtn").innerText = t.myPosts;
+      document.getElementById("changePasswordBtn").innerText = t.changePassword;
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+      loadProfile();
+    });
+
+    async function loadProfile() {
+      const lang = getCurrentLanguage();
+      const t = getProfileText(lang);
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          alert(t.pleaseLoginFirst);
+          window.location.href = "login.html";
           return;
         }
 
-        const data = snapshot.val();
+        try {
+          const snapshot = await get(ref(db, "users/" + user.uid));
 
-        const nameEl = document.getElementById("name");
-        const emailEl = document.getElementById("email");
-        const schoolEl = document.getElementById("school");
-        const speakEl = document.getElementById("speak");
-        const learnEl = document.getElementById("learn");
-        const contactEl = document.getElementById("contact");
-        const bioEl = document.getElementById("bio");
-        const avatarEl = document.getElementById("avatar");
+          if (!snapshot.exists()) {
+            alert(t.userDataNotFound);
+            return;
+          }
 
-        nameEl.innerText = data.name || "No name";
-        emailEl.innerText = data.email || user.email;
-        schoolEl.innerText = data.school || "Not set";
-        speakEl.innerText = data.speak || "Not set";
-        learnEl.innerText = data.learn || "Not set";
-        contactEl.innerText = data.contact || "Not set";
-        bioEl.innerText = data.bio || "Not set";
+          const data = snapshot.val();
 
-        avatarEl.src = data.avatar && data.avatar.trim() !== ""
-          ? data.avatar
-          : "https://via.placeholder.com/90";
+          const nameEl = document.getElementById("name");
+          const emailEl = document.getElementById("email");
+          const schoolEl = document.getElementById("school");
+          const speakEl = document.getElementById("speak");
+          const learnEl = document.getElementById("learn");
+          const contactEl = document.getElementById("contact");
+          const bioEl = document.getElementById("bio");
+          const avatarEl = document.getElementById("avatar");
 
-      } catch (error) {
-        console.error("Profile load error:", error);
-        alert("Failed to load profile: " + error.message);
-      }
-    });
+          nameEl.innerText = data.name || t.noName;
+          emailEl.innerText = data.email || user.email;
+          schoolEl.innerText = data.school || t.notSet;
+          speakEl.innerText = data.speak || t.notSet;
+          learnEl.innerText = data.learn || t.notSet;
+          contactEl.innerText = data.contact || t.notSet;
+          bioEl.innerText = data.bio || t.notSet;
+
+          avatarEl.src = data.avatar && data.avatar.trim() !== ""
+            ? data.avatar
+            : "https://via.placeholder.com/90";
+
+        } catch (error) {
+          console.error("Profile load error:", error);
+          alert(t.failedToLoadProfile + error.message);
+        }
+      });
+    }
+
+    applyLanguage();
+    loadProfile();
   </script>
 </body>
 </html>

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Edit Profile</title>
 
   <style>
@@ -8,6 +10,26 @@
       font-family:Arial, sans-serif;
       background:#f3f4f6;
       margin:0;
+    }
+
+    .navbar{
+      background:#1d4ed8;
+      color:white;
+      padding:16px 24px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:20px;
+      font-size:22px;
+      font-weight:bold;
+    }
+
+    .language-switcher{
+      padding:8px 10px;
+      border-radius:8px;
+      border:none;
+      font-size:14px;
+      cursor:pointer;
     }
 
     .container{
@@ -68,38 +90,47 @@
 </head>
 
 <body>
+  <div class="navbar">
+    <span id="pageTitle">Edit Profile</span>
+
+    <select id="languageSwitcher" class="language-switcher">
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
 
   <div class="container">
-    <h2>Edit Profile</h2>
+    <h2 id="heading">Edit Profile</h2>
 
-    <label>School</label>
+    <label id="schoolLabel">School</label>
     <input id="school" placeholder="Enter your school">
 
-    <label>Bio</label>
+    <label id="bioLabel">Bio</label>
     <textarea id="bio" placeholder="Write a short self introduction"></textarea>
 
-    <label>Languages You Speak</label>
+    <label id="speakLabel">Languages You Speak</label>
     <input id="speak" placeholder="Chinese, English...">
 
-    <label>Language You Learn</label>
+    <label id="learnLabel">Language You Learn</label>
     <input id="learn" placeholder="Japanese...">
 
-    <label>Instagram / Contact</label>
+    <label id="contactLabel">Instagram / Contact</label>
     <input id="contact" placeholder="@instagram / LINE / etc.">
 
-    <label>Avatar</label>
+    <label id="avatarLabel">Avatar</label>
     <input type="file" id="avatar" accept="image/*">
 
     <img id="avatarPreview" class="preview" src="https://via.placeholder.com/90" alt="Avatar Preview">
 
-    <button onclick="saveProfile()">Save</button>
-    <button onclick="window.location.href='profile.html'">Back</button>
+    <button onclick="saveProfile()" id="saveBtn">Save</button>
+    <button onclick="window.location.href='profile.html'" id="backBtn">Back</button>
   </div>
 
   <script type="module">
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get, update } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     let currentUser = null;
     let currentProfile = {};
@@ -111,10 +142,93 @@
     const contactInput = document.getElementById("contact");
     const avatarInput = document.getElementById("avatar");
     const avatarPreview = document.getElementById("avatarPreview");
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
+    function getEditProfileText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "プロフィール編集",
+          heading: "プロフィール編集",
+          school: "学校",
+          schoolPlaceholder: "学校名を入力してください",
+          bio: "Bio",
+          bioPlaceholder: "簡単な自己紹介を書いてください",
+          speaks: "話せる言語",
+          speaksPlaceholder: "中国語、英語...",
+          learn: "学びたい言語",
+          learnPlaceholder: "日本語...",
+          contact: "Instagram / 連絡先",
+          contactPlaceholder: "@instagram / LINE など",
+          avatar: "プロフィール画像",
+          save: "保存",
+          back: "戻る",
+          pleaseLoginFirst: "先にログインしてください",
+          failedToLoad: "プロフィールデータの読み込みに失敗しました",
+          profileUpdated: "プロフィールを更新しました",
+          failedToUpdate: "プロフィールの更新に失敗しました: ",
+          failedToReadImage: "画像ファイルの読み込みに失敗しました"
+        };
+      }
+
+      return {
+        pageTitle: "Edit Profile",
+        heading: "Edit Profile",
+        school: "School",
+        schoolPlaceholder: "Enter your school",
+        bio: "Bio",
+        bioPlaceholder: "Write a short self introduction",
+        speaks: "Languages You Speak",
+        speaksPlaceholder: "Chinese, English...",
+        learn: "Language You Learn",
+        learnPlaceholder: "Japanese...",
+        contact: "Instagram / Contact",
+        contactPlaceholder: "@instagram / LINE / etc.",
+        avatar: "Avatar",
+        save: "Save",
+        back: "Back",
+        pleaseLoginFirst: "Please login first",
+        failedToLoad: "Failed to load profile data",
+        profileUpdated: "Profile updated",
+        failedToUpdate: "Failed to update profile: ",
+        failedToReadImage: "Failed to read image file"
+      };
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const t = getEditProfileText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = t.pageTitle;
+      document.getElementById("pageTitle").innerText = t.pageTitle;
+      document.getElementById("heading").innerText = t.heading;
+      document.getElementById("schoolLabel").innerText = t.school;
+      schoolInput.placeholder = t.schoolPlaceholder;
+      document.getElementById("bioLabel").innerText = t.bio;
+      bioInput.placeholder = t.bioPlaceholder;
+      document.getElementById("speakLabel").innerText = t.speaks;
+      speakInput.placeholder = t.speaksPlaceholder;
+      document.getElementById("learnLabel").innerText = t.learn;
+      learnInput.placeholder = t.learnPlaceholder;
+      document.getElementById("contactLabel").innerText = t.contact;
+      contactInput.placeholder = t.contactPlaceholder;
+      document.getElementById("avatarLabel").innerText = t.avatar;
+      document.getElementById("saveBtn").innerText = t.save;
+      document.getElementById("backBtn").innerText = t.back;
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
+      const t = getEditProfileText(getCurrentLanguage());
+
       if (!user) {
-        alert("Please login first");
+        alert(t.pleaseLoginFirst);
         window.location.href = "login.html";
         return;
       }
@@ -139,7 +253,7 @@
         }
       } catch (error) {
         console.error(error);
-        alert("Failed to load profile data");
+        alert(t.failedToLoad);
       }
     });
 
@@ -155,8 +269,10 @@
     });
 
     async function saveProfile() {
+      const t = getEditProfileText(getCurrentLanguage());
+
       if (!currentUser) {
-        alert("Please login first");
+        alert(t.pleaseLoginFirst);
         return;
       }
 
@@ -178,15 +294,17 @@
 
         await update(ref(db, "users/" + currentUser.uid), updatedData);
 
-        alert("Profile updated");
+        alert(t.profileUpdated);
         window.location.href = "profile.html";
       } catch (error) {
         console.error(error);
-        alert("Failed to update profile: " + error.message);
+        alert(t.failedToUpdate + error.message);
       }
     }
 
     function readFileAsDataURL(file) {
+      const t = getEditProfileText(getCurrentLanguage());
+
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
 
@@ -195,7 +313,7 @@
         };
 
         reader.onerror = function() {
-          reject(new Error("Failed to read image file"));
+          reject(new Error(t.failedToReadImage));
         };
 
         reader.readAsDataURL(file);
@@ -203,6 +321,8 @@
     }
 
     window.saveProfile = saveProfile;
+
+    applyLanguage();
   </script>
 
 </body>

@@ -20,6 +20,14 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .nav-links {
@@ -39,6 +47,14 @@
     #userInfo {
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -224,13 +240,22 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Community Feed</span>
+    <div class="nav-left">
+      <span id="pageTitle">Community Feed</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="community.html">Community</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="community.html" id="navCommunity">Community</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
+
       <span id="userInfo"></span>
       <a href="login.html" id="authLink">Login</a>
     </div>
@@ -248,11 +273,13 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, onValue, get, push, set, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { translations, getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const userInfo = document.getElementById("userInfo");
     const authLink = document.getElementById("authLink");
     const feedContainer = document.getElementById("feedContainer");
     const createBtn = document.getElementById("createBtn");
+    const languageSwitcher = document.getElementById("languageSwitcher");
 
     let currentUser = null;
     let currentProfile = null;
@@ -263,6 +290,43 @@
     let myFavorites = {};
     let myFriends = {};
     let expandedComments = {};
+
+    function t(key) {
+      const lang = getCurrentLanguage();
+      return translations[lang][key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+
+      document.documentElement.lang = lang;
+      document.title = t("communityFeedTitle");
+      document.getElementById("pageTitle").innerText = t("communityFeedTitle");
+      document.getElementById("navHome").innerText = t("home");
+      document.getElementById("navCommunity").innerText = t("community");
+      document.getElementById("navFriends").innerText = t("friends");
+      document.getElementById("navChats").innerText = t("chats");
+      document.getElementById("navProfile").innerText = t("profile");
+      document.getElementById("createBtn").innerText = t("createCommunityPost");
+
+      if (authLink.dataset.loggedIn === "true") {
+        authLink.innerText = t("logout");
+      } else {
+        authLink.innerText = t("login");
+      }
+
+      if (allPosts.length === 0) {
+        feedContainer.innerHTML = `<p class="empty">${t("loadingCommunityPosts")}</p>`;
+      }
+
+      languageSwitcher.value = lang;
+      renderFeed();
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     createBtn.addEventListener("click", () => {
       window.location.href = "community-create.html";
@@ -291,7 +355,8 @@
           renderFeed();
         });
 
-        authLink.innerText = "Logout";
+        authLink.dataset.loggedIn = "true";
+        authLink.innerText = t("logout");
         authLink.href = "#";
         authLink.onclick = async (e) => {
           e.preventDefault();
@@ -303,11 +368,13 @@
         myFavorites = {};
         myFriends = {};
         userInfo.innerText = "";
-        authLink.innerText = "Login";
+        authLink.dataset.loggedIn = "false";
+        authLink.innerText = t("login");
         authLink.href = "login.html";
         authLink.onclick = null;
       }
 
+      applyLanguage();
       renderFeed();
     });
 
@@ -354,7 +421,7 @@
 
     async function toggleLike(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -370,7 +437,7 @@
 
     async function toggleFavorite(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -386,7 +453,7 @@
 
     async function toggleCommunityCommentLike(postId, commentId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -402,12 +469,12 @@
 
     async function deleteCommunityPost(postId, postUid) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
       if (currentUser.uid !== postUid) {
-        alert("You can only delete your own post.");
+        alert(t("youCanOnlyDeleteOwnPost"));
         return;
       }
 
@@ -416,11 +483,12 @@
       await remove(ref(db, `communityLikes/${postId}`));
       await remove(ref(db, `communityCommentLikes/${postId}`));
       await remove(ref(db, `communityFavorites/${currentUser.uid}/${postId}`));
+      alert(t("communityPostDeleted"));
     }
 
     async function deleteCommunityComment(postId, commentId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -428,14 +496,14 @@
       const snapshot = await get(commentRef);
 
       if (!snapshot.exists()) {
-        alert("Comment not found.");
+        alert(t("commentNotFound"));
         return;
       }
 
       const data = snapshot.val();
 
       if (data.uid !== currentUser.uid) {
-        alert("You can only delete your own comment.");
+        alert(t("youCanOnlyDeleteOwnComment"));
         return;
       }
 
@@ -445,7 +513,7 @@
 
     async function submitCommunityComment(postId) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -455,7 +523,7 @@
       const text = input.value.trim();
 
       if (!text) {
-        alert("Please write a comment.");
+        alert(t("pleaseWriteComment"));
         return;
       }
 
@@ -474,12 +542,12 @@
 
     async function sendFriendRequest(targetUid, targetName, targetAvatar) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
       if (currentUser.uid === targetUid) {
-        alert("You cannot add yourself.");
+        alert(t("youCannotAddYourself"));
         return;
       }
 
@@ -488,7 +556,7 @@
         const currentFriends = friendsSnapshot.val() || {};
 
         if (currentFriends[targetUid]) {
-          alert("You are already friends.");
+          alert(t("youAreAlreadyFriends"));
           return;
         }
 
@@ -509,7 +577,7 @@
         );
 
         if (duplicate) {
-          alert("A friend request already exists.");
+          alert(t("friendRequestExists"));
           return;
         }
 
@@ -526,16 +594,16 @@
           createdAt: Date.now()
         });
 
-        alert("Friend request sent.");
+        alert(t("friendRequestSent"));
       } catch (error) {
         console.error(error);
-        alert("Failed to send friend request: " + error.message);
+        alert(t("failedToSendFriendRequest") + error.message);
       }
     }
 
     async function openPrivateChat(targetUid) {
       if (!currentUser) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         return;
       }
 
@@ -577,7 +645,7 @@
         window.location.href = `chat.html?chatId=${foundChatId}`;
       } catch (error) {
         console.error(error);
-        alert("Failed to open chat: " + error.message);
+        alert(t("failedToOpenChat") + error.message);
       }
     }
 
@@ -589,7 +657,7 @@
     function renderComments(postId) {
       const commentGroup = allComments[postId];
       if (!commentGroup) {
-        return `<p class="empty">No comments yet.</p>`;
+        return `<p class="empty">${t("noCommentsYet")}</p>`;
       }
 
       const commentsArray = Object.entries(commentGroup)
@@ -597,7 +665,7 @@
         .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
       if (commentsArray.length === 0) {
-        return `<p class="empty">No comments yet.</p>`;
+        return `<p class="empty">${t("noCommentsYet")}</p>`;
       }
 
       return commentsArray.map(comment => {
@@ -629,7 +697,7 @@
               <div style="flex:1;">
                 <div class="comment-meta">
                   <a href="user-profile.html?uid=${comment.uid}" class="comment-user-link">
-                    ${escapeHtml(comment.name || "Anonymous")}
+                    ${escapeHtml(comment.name || t("anonymous"))}
                   </a>
                   · ${formatTime(comment.createdAt)}
                 </div>
@@ -640,7 +708,7 @@
 
                 <div class="mini-actions">
                   <button style="background:#dc2626;" onclick="handleToggleCommunityCommentLike('${postId}', '${comment.id}')">
-                    ${commentLiked ? "Unlike" : "Like"} (${commentLikeCount})
+                    ${commentLiked ? t("unlike") : t("like")} (${commentLikeCount})
                   </button>
 
                   ${
@@ -650,18 +718,18 @@
                           myFriends && myFriends[comment.uid]
                             ? `
                               <button style="background:#9ca3af; cursor:default;" disabled>
-                                Friends
+                                ${t("friendsStatus")}
                               </button>
                             `
                             : `
                               <button style="background:#16a34a;" onclick="handleCommentFriendRequest('${comment.uid}', '${escapeHtml(comment.name || "")}', '${comment.avatar || ""}')">
-                                Add Friend
+                                ${t("addFriend")}
                               </button>
                             `
                         }
 
                         <button style="background:#7c3aed;" onclick="handleCommentMessage('${comment.uid}')">
-                          Message
+                          ${t("message")}
                         </button>
                       `
                       : ""
@@ -671,7 +739,7 @@
                     canDeleteComment
                       ? `
                         <button style="background:#374151;" onclick="handleDeleteCommunityComment('${postId}', '${comment.id}')">
-                          Delete
+                          ${t("delete")}
                         </button>
                       `
                       : ""
@@ -688,7 +756,7 @@
       if (!feedContainer) return;
 
       if (allPosts.length === 0) {
-        feedContainer.innerHTML = `<p class="empty">No community posts yet.</p>`;
+        feedContainer.innerHTML = `<p class="empty">${t("noCommunityPostsYet")}</p>`;
         return;
       }
 
@@ -729,15 +797,15 @@
 
           <div class="action-row">
             <button class="like-btn" onclick="handleToggleCommunityLike('${post.id}')">
-              ${liked ? "Unlike" : "Like"} (${likeCount})
+              ${liked ? t("unlike") : t("like")} (${likeCount})
             </button>
 
             <button class="favorite-btn" onclick="handleToggleCommunityFavorite('${post.id}')">
-              ${favorited ? "Unfavorite" : "Favorite"}
+              ${favorited ? t("unfavorite") : t("favorite")}
             </button>
 
             <button class="toggle-comments-btn" onclick="handleToggleComments('${post.id}')">
-              ${commentsVisible ? "Hide Comments" : "Show Comments"} (${commentCount})
+              ${commentsVisible ? t("hideComments") : t("showComments")} (${commentCount})
             </button>
 
             ${
@@ -747,18 +815,18 @@
                     myFriends && myFriends[post.uid]
                       ? `
                         <button class="friend-btn" style="background:#9ca3af; cursor:default;" disabled>
-                          Friends
+                          ${t("friendsStatus")}
                         </button>
                       `
                       : `
                         <button class="friend-btn" onclick="handleCommunityFriendRequest('${post.uid}', '${escapeHtml(post.name || "")}', '${post.avatar || ""}')">
-                          Add Friend
+                          ${t("addFriend")}
                         </button>
                       `
                   }
 
                   <button class="message-btn" onclick="handleCommunityMessage('${post.uid}')">
-                    Message
+                    ${t("message")}
                   </button>
                 `
                 : ""
@@ -766,7 +834,7 @@
 
             ${
               currentUser && currentUser.uid === post.uid
-                ? `<button class="delete-btn" onclick="handleDeleteCommunityPost('${post.id}', '${post.uid}')">Delete</button>`
+                ? `<button class="delete-btn" onclick="handleDeleteCommunityPost('${post.id}', '${post.uid}')">${t("delete")}</button>`
                 : ""
             }
           </div>
@@ -775,12 +843,12 @@
             commentsVisible
               ? `
                 <div class="comments-section">
-                  <h4>Comments</h4>
+                  <h4>${t("comments")}</h4>
                   ${renderComments(post.id)}
 
                   <div class="comment-input-row">
-                    <input type="text" id="community-comment-input-${post.id}" placeholder="Write a comment...">
-                    <button class="comment-btn" onclick="handleSubmitCommunityComment('${post.id}')">Comment</button>
+                    <input type="text" id="community-comment-input-${post.id}" placeholder="${t("writeCommunityComment")}">
+                    <button class="comment-btn" onclick="handleSubmitCommunityComment('${post.id}')">${t("comment")}</button>
                   </div>
                 </div>
               `

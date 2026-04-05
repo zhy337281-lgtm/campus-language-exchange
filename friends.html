@@ -21,13 +21,36 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
     }
 
     .nav-links a {
       color: white;
       text-decoration: none;
-      margin-left: 16px;
       font-size: 16px;
+      margin-left: 0;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -69,18 +92,34 @@
       gap: 12px;
     }
 
+    .avatar-link {
+      display: inline-block;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
     .avatar {
       width: 56px;
       height: 56px;
       border-radius: 50%;
       object-fit: cover;
       background: #dbeafe;
+      cursor: pointer;
     }
 
     .name {
       font-size: 18px;
       font-weight: bold;
       color: #1d4ed8;
+    }
+
+    .name a {
+      text-decoration: none;
+      color: #1d4ed8;
+    }
+
+    .name a:hover {
+      text-decoration: underline;
     }
 
     .meta {
@@ -106,23 +145,30 @@
 
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <div class="nav-left">
+      <span id="pageTitle">Friends</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="partners.html">Find Partner</a>
-      <a href="requests.html">Requests</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="partners.html" id="navFindPartner">Find Partner</a>
+      <a href="requests.html" id="navRequests">Requests</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
     </div>
   </div>
 
   <div class="container">
-    <h2>My Friends</h2>
+    <h2 id="heading">My Friends</h2>
 
-    <!-- ⭐ 新增入口 -->
     <div class="top-actions">
-      <button onclick="window.location.href='add-friend-by-email.html'">
+      <button id="addFriendByEmailBtn" onclick="window.location.href='add-friend-by-email.html'">
         ➕ Add Friend by Email
       </button>
     </div>
@@ -134,13 +180,81 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, get, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const container = document.getElementById("friends-container");
+    const languageSwitcher = document.getElementById("languageSwitcher");
     let currentUser = null;
+
+    function getFriendsText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "友達",
+          home: "ホーム",
+          findPartner: "パートナーを探す",
+          requests: "申請",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          heading: "友達一覧",
+          addFriendByEmail: "➕ メールで友達追加",
+          message: "メッセージ",
+          noFriendsYet: "まだ友達がいません。",
+          pleaseLoginFirst: "先にログインしてください。",
+          unknownUser: "不明なユーザー"
+        };
+      }
+
+      return {
+        pageTitle: "Friends",
+        home: "Home",
+        findPartner: "Find Partner",
+        requests: "Requests",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        heading: "My Friends",
+        addFriendByEmail: "➕ Add Friend by Email",
+        message: "Message",
+        noFriendsYet: "You have no friends yet.",
+        pleaseLoginFirst: "Please login first.",
+        unknownUser: "Unknown User"
+      };
+    }
+
+    function t(key) {
+      const lang = getCurrentLanguage();
+      return getFriendsText(lang)[key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getFriendsText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navFindPartner").innerText = text.findPartner;
+      document.getElementById("navRequests").innerText = text.requests;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+      document.getElementById("heading").innerText = text.heading;
+      document.getElementById("addFriendByEmailBtn").innerText = text.addFriendByEmail;
+
+      languageSwitcher.value = lang;
+      if (currentUser) loadFriends();
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         window.location.href = "login.html";
         return;
       }
@@ -199,7 +313,7 @@
       const friendUids = Object.keys(friendsData);
 
       if (friendUids.length === 0) {
-        container.innerHTML = `<p class="empty">You have no friends yet.</p>`;
+        container.innerHTML = `<p class="empty">${t("noFriendsYet")}</p>`;
         return;
       }
 
@@ -216,14 +330,14 @@
 
         div.innerHTML = `
           <div class="left">
-            <a href="user-profile.html?uid=${uid}">
-              <img class="avatar" src="${avatar}">
+            <a href="user-profile.html?uid=${uid}" class="avatar-link">
+              <img class="avatar" src="${avatar}" alt="avatar">
             </a>
 
             <div>
               <div class="name">
-                <a href="user-profile.html?uid=${uid}" style="text-decoration:none;color:#1d4ed8;">
-                  ${userData.name || "Unknown User"}
+                <a href="user-profile.html?uid=${uid}">
+                  ${userData.name || t("unknownUser")}
                 </a>
               </div>
               <div class="meta">${userData.email || ""}</div>
@@ -231,7 +345,7 @@
           </div>
 
           <button class="message-btn" data-uid="${uid}">
-            Message
+            ${t("message")}
           </button>
         `;
 
@@ -245,6 +359,8 @@
         });
       });
     }
+
+    applyLanguage();
   </script>
 </body>
 </html>

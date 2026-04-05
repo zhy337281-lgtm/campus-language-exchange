@@ -20,14 +20,36 @@
       align-items: center;
       font-size: 22px;
       font-weight: bold;
+      gap: 20px;
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
     }
 
     .nav-links a {
       color: white;
       text-decoration: none;
-      margin-left: 16px;
       font-size: 16px;
       font-weight: normal;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -54,17 +76,34 @@
       gap: 12px;
     }
 
+    .avatar-link {
+      display: inline-block;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
     .avatar {
       width: 56px;
       height: 56px;
       border-radius: 50%;
       object-fit: cover;
       background: #dbeafe;
+      cursor: pointer;
     }
 
     .name {
       font-size: 18px;
       font-weight: bold;
+      color: #1d4ed8;
+    }
+
+    .name a {
+      text-decoration: none;
+      color: #1d4ed8;
+    }
+
+    .name a:hover {
+      text-decoration: underline;
     }
 
     .time {
@@ -97,19 +136,27 @@
 </head>
 <body>
   <div class="navbar">
-    <span>Campus Language Exchange</span>
+    <div class="nav-left">
+      <span id="pageTitle">Friend Requests</span>
+    </div>
+
     <div class="nav-links">
-      <a href="index.html">Home</a>
-      <a href="partners.html">Find Partner</a>
-      <a href="requests.html">Requests</a>
-      <a href="friends.html">Friends</a>
-      <a href="chat-list.html">Chats</a>
-      <a href="profile.html">Profile</a>
+      <a href="index.html" id="navHome">Home</a>
+      <a href="partners.html" id="navFindPartner">Find Partner</a>
+      <a href="requests.html" id="navRequests">Requests</a>
+      <a href="friends.html" id="navFriends">Friends</a>
+      <a href="chat-list.html" id="navChats">Chats</a>
+      <a href="profile.html" id="navProfile">Profile</a>
+
+      <select id="languageSwitcher" class="language-switcher">
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+      </select>
     </div>
   </div>
 
   <div class="container">
-    <h2>Friend Requests</h2>
+    <h2 id="heading">Friend Requests</h2>
     <div id="requests-container"></div>
   </div>
 
@@ -117,19 +164,95 @@
     import { auth, db } from "./firebase.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
     import { ref, onValue, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
 
     const container = document.getElementById("requests-container");
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
     let currentUser = null;
     let allRequests = [];
+
+    function getRequestsText(lang) {
+      if (lang === "ja") {
+        return {
+          pageTitle: "友達申請",
+          home: "ホーム",
+          findPartner: "パートナーを探す",
+          requests: "申請",
+          friends: "友達",
+          chats: "チャット",
+          profile: "プロフィール",
+          heading: "友達申請",
+          accept: "承認",
+          reject: "拒否",
+          noPending: "保留中の申請はありません。",
+          pleaseLoginFirst: "先にログインしてください。",
+          friendAdded: "友達を追加しました。",
+          requestRejected: "申請を拒否しました。",
+          failedToAccept: "申請の承認に失敗しました: ",
+          failedToReject: "申請の拒否に失敗しました: ",
+          unknownUser: "不明なユーザー"
+        };
+      }
+
+      return {
+        pageTitle: "Friend Requests",
+        home: "Home",
+        findPartner: "Find Partner",
+        requests: "Requests",
+        friends: "Friends",
+        chats: "Chats",
+        profile: "Profile",
+        heading: "Friend Requests",
+        accept: "Accept",
+        reject: "Reject",
+        noPending: "No pending requests.",
+        pleaseLoginFirst: "Please login first.",
+        friendAdded: "Friend added.",
+        requestRejected: "Request rejected.",
+        failedToAccept: "Failed to accept request: ",
+        failedToReject: "Failed to reject request: ",
+        unknownUser: "Unknown User"
+      };
+    }
+
+    function t(key) {
+      const lang = getCurrentLanguage();
+      return getRequestsText(lang)[key] || key;
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const text = getRequestsText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = text.pageTitle;
+      document.getElementById("pageTitle").innerText = text.pageTitle;
+      document.getElementById("navHome").innerText = text.home;
+      document.getElementById("navFindPartner").innerText = text.findPartner;
+      document.getElementById("navRequests").innerText = text.requests;
+      document.getElementById("navFriends").innerText = text.friends;
+      document.getElementById("navChats").innerText = text.chats;
+      document.getElementById("navProfile").innerText = text.profile;
+      document.getElementById("heading").innerText = text.heading;
+
+      languageSwitcher.value = lang;
+      renderRequests();
+    }
 
     function formatTime(timestamp) {
       if (!timestamp) return "";
       return new Date(timestamp).toLocaleString();
     }
 
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
+
     onAuthStateChanged(auth, (user) => {
       if (!user) {
-        alert("Please login first.");
+        alert(t("pleaseLoginFirst"));
         window.location.href = "login.html";
         return;
       }
@@ -161,20 +284,20 @@
         await set(ref(db, `friends/${currentUser.uid}/${fromUid}`), true);
         await set(ref(db, `friends/${fromUid}/${currentUser.uid}`), true);
 
-        alert("Friend added.");
+        alert(t("friendAdded"));
       } catch (error) {
         console.error(error);
-        alert("Failed to accept request: " + error.message);
+        alert(t("failedToAccept") + error.message);
       }
     }
 
     async function rejectRequest(requestId) {
       try {
         await set(ref(db, `friendRequests/${requestId}/status`), "rejected");
-        alert("Request rejected.");
+        alert(t("requestRejected"));
       } catch (error) {
         console.error(error);
-        alert("Failed to reject request: " + error.message);
+        alert(t("failedToReject") + error.message);
       }
     }
 
@@ -189,7 +312,7 @@
       );
 
       if (receivedRequests.length === 0) {
-        container.innerHTML = `<p class="empty">No pending requests.</p>`;
+        container.innerHTML = `<p class="empty">${t("noPending")}</p>`;
         return;
       }
 
@@ -203,16 +326,22 @@
 
         div.innerHTML = `
           <div class="left">
-            <img class="avatar" src="${avatar}" alt="avatar">
+            <a href="user-profile.html?uid=${req.fromUid}" class="avatar-link">
+              <img class="avatar" src="${avatar}" alt="avatar">
+            </a>
             <div>
-              <div class="name">${req.fromName || "Unknown User"}</div>
+              <div class="name">
+                <a href="user-profile.html?uid=${req.fromUid}">
+                  ${req.fromName || t("unknownUser")}
+                </a>
+              </div>
               <div class="time">${formatTime(req.createdAt)}</div>
             </div>
           </div>
 
           <div class="actions">
-            <button class="accept-btn" data-id="${req.id}" data-fromuid="${req.fromUid}">Accept</button>
-            <button class="reject-btn" data-id="${req.id}">Reject</button>
+            <button class="accept-btn" data-id="${req.id}" data-fromuid="${req.fromUid}">${t("accept")}</button>
+            <button class="reject-btn" data-id="${req.id}">${t("reject")}</button>
           </div>
         `;
 
@@ -234,6 +363,8 @@
         });
       });
     }
+
+    applyLanguage();
   </script>
 </body>
 </html>

@@ -15,8 +15,20 @@
       background: #1d4ed8;
       color: white;
       padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
       font-size: 22px;
       font-weight: bold;
+    }
+
+    .language-switcher {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
     }
 
     .container {
@@ -72,63 +84,140 @@
   </style>
 </head>
 <body>
-  <div class="navbar">Campus Language Exchange</div>
+  <div class="navbar">
+    <span id="siteTitle">LinkCampus Community</span>
+
+    <select id="languageSwitcher" class="language-switcher">
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
 
   <div class="container">
-    <h1>Login</h1>
+    <h1 id="pageTitle">Login</h1>
 
-    <label>Email</label>
+    <label id="emailLabel">Email</label>
     <input type="email" id="email" placeholder="Enter your email" />
 
-    <label>Password</label>
+    <label id="passwordLabel">Password</label>
     <input type="password" id="password" placeholder="Enter your password" />
 
-    <button onclick="loginUser()">Login</button>
+    <button onclick="loginUser()" id="loginBtn">Login</button>
 
     <div class="link">
-      No account yet? <a href="register.html">Register</a>
+      <span id="registerText">No account yet?</span>
+      <a href="register.html" id="registerLink">Register</a>
     </div>
   </div>
 
   <script type="module">
     import { auth } from "./firebase.js";
-import { signInWithEmailAndPassword, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { signInWithEmailAndPassword, signOut, sendEmailVerification } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import { getCurrentLanguage, setCurrentLanguage } from "./language.js";
+
+    const languageSwitcher = document.getElementById("languageSwitcher");
+
+    function getLoginText(lang) {
+      if (lang === "ja") {
+        return {
+          title: "LinkCampus Community",
+          pageTitle: "ログイン",
+          email: "メールアドレス",
+          emailPlaceholder: "メールアドレスを入力してください",
+          password: "パスワード",
+          passwordPlaceholder: "パスワードを入力してください",
+          login: "ログイン",
+          noAccount: "アカウントをお持ちではありませんか？",
+          register: "新規登録",
+          enterBoth: "メールアドレスとパスワードを入力してください。",
+          emailNotVerifiedConfirm: "メール認証がまだ完了していません。OKを押すと確認メールを再送します。",
+          verificationSent: "確認メールを送信しました。受信箱をご確認ください。見当たらない場合は迷惑メールフォルダも確認してください。",
+          loginSuccess: "ログインに成功しました。",
+          loginFailed: "ログインに失敗しました: "
+        };
+      }
+
+      return {
+        title: "LinkCampus Community",
+        pageTitle: "Login",
+        email: "Email",
+        emailPlaceholder: "Enter your email",
+        password: "Password",
+        passwordPlaceholder: "Enter your password",
+        login: "Login",
+        noAccount: "No account yet?",
+        register: "Register",
+        enterBoth: "Please enter both email and password.",
+        emailNotVerifiedConfirm: "Your email has not been verified yet. Click OK to resend the verification email.",
+        verificationSent: "Verification email sent. Please check your inbox. If you do not see it, check your junk or spam folder.",
+        loginSuccess: "Login successful!",
+        loginFailed: "Login failed: "
+      };
+    }
+
+    function applyLanguage() {
+      const lang = getCurrentLanguage();
+      const t = getLoginText(lang);
+
+      document.documentElement.lang = lang;
+      document.title = t.pageTitle;
+      document.getElementById("siteTitle").innerText = t.title;
+      document.getElementById("pageTitle").innerText = t.pageTitle;
+      document.getElementById("emailLabel").innerText = t.email;
+      document.getElementById("email").placeholder = t.emailPlaceholder;
+      document.getElementById("passwordLabel").innerText = t.password;
+      document.getElementById("password").placeholder = t.passwordPlaceholder;
+      document.getElementById("loginBtn").innerText = t.login;
+      document.getElementById("registerText").innerText = t.noAccount;
+      document.getElementById("registerLink").innerText = t.register;
+
+      languageSwitcher.value = lang;
+    }
+
+    languageSwitcher.addEventListener("change", (e) => {
+      setCurrentLanguage(e.target.value);
+      applyLanguage();
+    });
 
     async function loginUser() {
+      const lang = getCurrentLanguage();
+      const t = getLoginText(lang);
+
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
 
       if (!email || !password) {
-        alert("Please enter both email and password.");
+        alert(t.enterBoth);
         return;
       }
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-const user = userCredential.user;
+        const user = userCredential.user;
 
-if (!user.emailVerified) {
-  const resend = confirm(
-    "Your email has not been verified yet. Click OK to resend the verification email."
-  );
+        if (!user.emailVerified) {
+          const resend = confirm(t.emailNotVerifiedConfirm);
 
-  if (resend) {
-    await sendEmailVerification(user);
-   alert("Verification email sent. Please check your inbox. If you do not see it, check your junk or spam folder.");
-  }
+          if (resend) {
+            await sendEmailVerification(user);
+            alert(t.verificationSent);
+          }
 
-  await signOut(auth);
-  return;
-}
-        alert("Login successful!");
+          await signOut(auth);
+          return;
+        }
+
+        alert(t.loginSuccess);
         window.location.href = "index.html";
       } catch (error) {
-        alert("Login failed: " + error.message);
+        alert(t.loginFailed + error.message);
         console.error(error);
       }
     }
 
     window.loginUser = loginUser;
+
+    applyLanguage();
   </script>
 </body>
 </html>
