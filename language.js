@@ -8,7 +8,7 @@ export const translations = {
     login: "Login",
     logout: "Logout",
 
-    welcomeTitle: "Welcome to LinkCampus Community",
+    welcomeTitle: "Welcome to Campus Language Exchange",
     welcomeDesc: "Connect with students, practice languages, and build your campus community.",
     features: "Features",
 
